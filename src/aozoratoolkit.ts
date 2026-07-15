@@ -97,7 +97,7 @@ if (!myConst.DEVMODE) {
 } else {
   globalRootPath = path.join(__dirname, '..');
 }
-// 環境変数
+// set env file
 dotenv({ path: path.join(globalRootPath, 'assets', '.env') });
 // file root path
 const fileRootPath: string = path.join(globalRootPath, 'file');
