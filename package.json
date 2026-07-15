@@ -1,0 +1,70 @@
+{
+  "name": "aozora-toolkit",
+  "productName": "aozoratoolkit",
+  "version": "0.0.1-alpha1",
+  "description": "toolkit for aozora bunko",
+  "main": "build/aozoratoolkit.js",
+  "scripts": {
+    "build": "tsc && chcp 65001",
+    "start": "npm run build && electron .",
+    "build-win": "npm run build && electron-builder --win --x64"
+  },
+  "keywords": [
+    "aozora",
+    "book",
+    "editor",
+    "free"
+  ],
+  "author": {
+    "name": "numthree-uchimura (https://github.com/N3-uchimura/)",
+    "email": "uchimura@numthree.net"
+  },
+  "dependencies": {
+    "@ghostery/adblocker-puppeteer": "^2.18.1",
+    "chardet": "^2.2.0",
+    "cross-fetch": "^4.1.0",
+    "csv": "^6.4.1",
+    "electron-log": "^5.4.0",
+    "electron-updater": "^6.8.9",
+    "extract-zip": "^2.0.1",
+    "iconv-lite": "^0.6.3",
+    "kanadaku": "^1.1.0",
+    "node-cache": "^5.1.2",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.9",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.7.0"
+  },
+  "build": {
+    "appId": "net.numthree.aozoratoolkit",
+    "productName": "aozoratoolkit",
+    "files": [
+      "build/**/*",
+      "package.json",
+      "!dist/**/*",
+      "!src/**/*",
+      "!.gitignore",
+      "!.vscode"
+    ],
+    "extraResources": [
+      "assets",
+      "www/**/*"
+    ],
+    "squirrelWindows": {},
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/aozoratoolkit.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "license": "MIT"
+}
