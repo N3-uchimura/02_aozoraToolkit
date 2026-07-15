@@ -23,8 +23,7 @@ import {
 } from 'node:fs/promises'; // promise fs
 import { setTimeout } from 'node:timers/promises'; // wait for seconds
 import { exec } from 'child_process'; // child process
-// 環境変数用
-import { config as dotenv } from 'dotenv';
+import { config as dotenv } from 'dotenv'; // env
 import { BrowserWindow, app, ipcMain, Tray, Menu, nativeImage, protocol } from 'electron'; // electron
 import { autoUpdater } from 'electron-updater'; // updater
 import iconv from 'iconv-lite'; // text converter
