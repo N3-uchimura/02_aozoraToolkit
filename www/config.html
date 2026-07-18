@@ -21,10 +21,12 @@
     <button id="save_button" class="button-g button-6 button-wide" value="top" onclick="save();">Save</button>
   </div>
   <div class="operation_area">
-    <button id="top_button" class="button-g button-1 button-wide" value="top" onclick="topPage();">Goto Top</button>
+    <button id="top_button" class="button-g button-1 button-wide" value="top"
+      onclick="transfer('top_page');">Top</button>
   </div>
   <div class="operation_area">
-    <button id="exit_button" class="button-g button-6 button-wide" value="exit" onclick="exitApp();">Exit</button>
+    <button id="exit_button" class="button-g button-6 button-wide" value="exit"
+      onclick="transfer('exit_page');">Exit</button>
   </div>
   <footer>
     <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
@@ -88,25 +90,11 @@
       }
     }
 
-    // goto top
-    const topPage = () => {
+    // page transfer
+    const transfer = channel => {
       try {
-        console.log("topPage mode");
-        // send to main ipc
-        window.api.send("top");
-
-      } catch (e) {
-        // error
-        window.api.send("error", e);
-      }
-    }
-
-    // exit
-    const exitApp = () => {
-      try {
-        console.log('exit');
-        // exit app
-        window.api.send('exit');
+        // transfer
+        window.api.send("page", channel);
 
       } catch (e) {
         // error

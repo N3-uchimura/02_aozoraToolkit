@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Aozora Toolkit</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/button.css">
+</head>
+
+<body>
+  <h1 id="maintitle">Aozora Scraper</h1>
+  <div class="operation_area">
+    <button id="open_button" class="button-g button-6 button-wide" value="open" onclick="gotoOpen()">Open</button>
+  </div>
+  <hr>
+  <div>
+    <input id="file" type="radio" name="mode" value="file" onchange="radioChanged(this.value)" checked><label
+      id="filelabel" for="file">GetFile</label>
+    <input id="book" type="radio" name="mode" value="book" onchange="radioChanged(this.value)"><label id="booklabel"
+      for="book">GetBook</label>
+    <input id="author" type="radio" name="mode" value="author" onchange="radioChanged(this.value)"><label
+      id="authorlabel" for="author">GetAuthor</label>
+    <input id="title" type="radio" name="mode" value="title" onchange="radioChanged(this.value)"><label id="titlelabel"
+      for="title">GetTitle</label>
+  </div>
+  <div id="startnum_area" class="number01 display-none">
+    <h3 id="startnumHead">Start number (1-2410)</h3>
+    <input id="startnum" type="number" min="1" max="2410" value="1">
+  </div>
+  <div id="endnum_area" class="number01 display-none">
+    <h3 id="endnumHead">End number (2-2410)</h3>
+    <input id="endnum" type="number" min="2" max="2410" value="2410">
+  </div>
+  <div id="select_en" class="cp_ipselect02">
+    <select id="starten" name="start">
+      <option value="all">all</option>
+      <option value="a">a</option>
+      <option value="ka">ka</option>
+      <option value="sa">sa</option>
+      <option value="ta">ta</option>
+      <option value="na">na</option>
+      <option value="ha">ha</option>
+      <option value="ma">ma</option>
+      <option value="ya">ya</option>
+      <option value="ra">ra</option>
+      <option value="wa">wa</option>
+      <option value="a-z">a-z</option>
+    </select>
+  </div>
+  <div id="select_ja" class="cp_ipselect02">
+    <select id="startja" name="start">
+      <option value="all">全</option>
+      <option value="a">あ</option>
+      <option value="ka">か</option>
+      <option value="sa">さ</option>
+      <option value="ta">た</option>
+      <option value="na">な</option>
+      <option value="ha">は</option>
+      <option value="ma">ま</option>
+      <option value="ya">や</option>
+      <option value="ra">ら</option>
+      <option value="wa">わ</option>
+      <option value="a-z">a-z</option>
+    </select>
+  </div>
+  <div class="operation_area">
+    <button id="scraping_button" class="button-g button-wide" value="scraping"
+      onclick="gotoScrape();">Scrape</button><br><br>
+    <button id="pause_button" class="button-g button-4 button-wide" onclick="pauseScrape();">Pause</button>
+  </div>
+  <div class="operation_area">
+    <h3 id="status">Status</h3>
+    <div id="statusarea"></div>
+  </div>
+  <hr>
+  <div class="operation_area">
+    <button id="top_button" class="button-g button-wide" value="top"
+      onclick="transfer('top_page');">Top</button><br><br>
+  </div>
+  <div class="exit_area">
+    <button id="exit_button" class="button-g button-1 button-wide" value="exit"
+      onclick="transfer('exit_page');">Exit</button>
+  </div>
+  <div class="operation_area">
+    <div id="error" class="red"></div>
+  </div>
+  <footer>
+    <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
+  </footer>
+
+  <script charset="UTF-8">
+    /// japanese
+    // common
+    const APPNAME_STR_JA = '青空ツールキット';
+    const PAGENAME_STR_JA = '青空スクレイパー';
+    const OPENDIR_STR_JA = 'フォルダ開く';
+    const STATUS_STR_JA = 'ステータス';
+    const GOTOTOP_STR_JA = 'トップに戻る';
+    const EXIT_STR_JA = '終了';
+    // scraping
+    const SCRAPING_STR_JA = 'スクレイピング';
+    const GETFILES_STR_JA = 'ファイル取得';
+    const GETBOOKS_STR_JA = '作品取得';
+    const GETAUTHORS_STR_JA = '著者取得';
+    const GETTITLES_STR_JA = 'タイトル取得';
+    const PAUSE_STR_JA = '一時停止';
+    const STARTNUM_STR_JA = '開始位置(1-2410)';
+    const ENDNUM_STR_JA = '終了位置(2-2410)';
+
+    /// english
+    // common
+    const APPNAME_STR_EN = 'Aozora Toolkit';
+    const PAGENAME_STR_EN = 'Aozora Scraper';
+    const OPENDIR_STR_EN = 'OpenDir';
+    const STATUS_STR_EN = 'Status';
+    const GOTOTOP_STR_EN = 'Goto Top';
+    const EXIT_STR_EN = 'Exit';
+    // scraping
+    const SCRAPING_STR_EN = 'Scrape';
+    const GETFILES_STR_EN = 'GetFiles';
+    const GETBOOKS_STR_EN = 'GetBooks';
+    const GETAUTHORS_STR_EN = 'GetAuthors';
+    const GETTITLES_STR_EN = 'GetTitles';
+    const PAUSE_STR_EN = 'Pause';
+    const STARTNUM_STR_EN = 'Start number (1-2410)';
+    const ENDNUM_STR_EN = 'End number (2-2410)';
+
+    /// doms
+    // common
+    const maintitleDom = document.getElementById("maintitle");
+    const opendirButtonDom = document.getElementById('open_button');
+    const statusDom = document.getElementById('status');
+    const statusAreaDom = document.getElementById('statusarea');
+    const errorDom = document.getElementById('error');
+    const topButtonDom = document.getElementById('top_button');
+    const exitButtonDom = document.getElementById('exit_button');
+    // scraping
+    const selectJaDom = document.getElementById("select_ja");
+    const selectEnDom = document.getElementById("select_en");
+    const startNumDom = document.getElementById("startnum");
+    const endNumDom = document.getElementById("endnum");
+    const startAreaNumDom = document.getElementById("startnum_area");
+    const endAreaNumDom = document.getElementById("endnum_area");
+    const startHeadNumDom = document.getElementById("startnumHead");
+    const endHeadNumDom = document.getElementById("endnumHead");
+    const startJaDom = document.getElementById("startja");
+    const startEnDom = document.getElementById("starten");
+    const getfileDom = document.getElementById('filelabel');
+    const getbookDom = document.getElementById('booklabel');
+    const getauthorDom = document.getElementById('authorlabel');
+    const gettitleDom = document.getElementById('titlelabel');
+    const scrapeButtonDom = document.getElementById('scraping_button');
+    const pauseButtonDom = document.getElementById('pause_button');
+
+    /// ipc
+    // before ready
+    window.api.send("beforeready");
+
+    // be ready
+    window.api.on("ready", arg => {
+      console.log('ready');
+      // change language
+      changeLanguage(arg);
+    });
+
+    // update status
+    window.api.on('statusUpdate', arg => {
+      try {
+        console.log(arg);
+        // status 
+        statusAreaDom.innerHTML = arg.status;
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    });
+
+    // update error
+    window.api.on('errorUpdate', arg => {
+      try {
+        console.log(arg);
+        // error 
+        errorDom.innerHTML = arg;
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    });
+
+    /// scraping
+    // start scraping
+    const gotoScrape = () => {
+      try {
+        // start
+        let tmpStart = '';
+        // get radio
+        const value = document.querySelector("input[name='mode']:checked").value;
+        // get select
+        if (globalLanguage == 'japanese') {
+          tmpStart = startJaDom.value;
+        } else {
+          tmpStart = startEnDom.value;
+        }
+
+        // mode switch
+        switch (value) {
+          // file mode
+          case "file":
+            // file scrape
+            window.api.send('download', tmpStart);
+            break;
+
+          // book mode
+          case "book":
+            // bookscrape
+            window.api.send('bookscrape', tmpStart);
+            break;
+
+          // title mode
+          case "title":
+            // title scrape
+            window.api.send('titlescrape', tmpStart);
+            break;
+
+          // author mode
+          case "author":
+            const tmpObj = {
+              start: startNumDom.value,
+              end: endNumDom.value
+            }
+            // author scrape
+            window.api.send('authorscrape', tmpObj);
+            break;
+
+          default:
+            console.log('invalid mode');
+        }
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // pause Scraping
+    const pauseScrape = () => {
+      try {
+        // pause Scraping
+        window.api.send("pause");
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // on radio changed
+    const radioChanged = (value) => {
+      try {
+        // initialize form
+        if (value === 'author') {
+          startAreaNumDom.classList.remove("display-none");
+          endAreaNumDom.classList.remove("display-none");
+          // japanese
+          if (globalLanguage == 'japanese') {
+            selectJaDom.classList.add("display-none");
+          } else {
+            selectEnDom.classList.add("display-none");
+          }
+        } else {
+          startAreaNumDom.classList.add("display-none");
+          endAreaNumDom.classList.add("display-none");
+          // japanese
+          if (globalLanguage == 'japanese') {
+            selectJaDom.classList.remove("display-none");
+          } else {
+            selectEnDom.classList.remove("display-none");
+          }
+        }
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    /// common
+    // page transfer
+    const transfer = channel => {
+      try {
+        // transfer
+        window.api.send("page", channel);
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // goto open dir
+    const gotoOpen = () => {
+      try {
+        // scrape
+        window.api.send('open');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // change language
+    const changeLanguage = lang => {
+      // japanese
+      if (lang == 'japanese') {
+        document.title = APPNAME_STR_JA;
+        maintitleDom.innerHTML = PAGENAME_STR_JA;
+        getfileDom.innerHTML = GETFILES_STR_JA;
+        getbookDom.innerHTML = GETBOOKS_STR_JA;
+        getauthorDom.innerHTML = GETAUTHORS_STR_JA;
+        gettitleDom.innerHTML = GETTITLES_STR_JA;
+        scrapeButtonDom.innerHTML = SCRAPING_STR_JA;
+        startHeadNumDom.innerHTML = STARTNUM_STR_JA;
+        endHeadNumDom.innerHTML = ENDNUM_STR_JA;
+        pauseButtonDom.innerHTML = PAUSE_STR_JA;
+        opendirButtonDom.innerHTML = OPENDIR_STR_JA;
+        statusDom.innerHTML = STATUS_STR_JA;
+        topButtonDom.innerHTML = GOTOTOP_STR_JA;
+        exitButtonDom.innerHTML = EXIT_STR_JA;
+        document.documentElement.setAttribute("lang", 'ja');
+        // english
+      } else {
+        document.title = APPNAME_STR_EN;
+        maintitleDom.innerHTML = PAGENAME_STR_EN;
+        getfileDom.innerHTML = GETFILES_STR_EN;
+        getbookDom.innerHTML = GETBOOKS_STR_EN;
+        getauthorDom.innerHTML = GETAUTHORS_STR_EN;
+        gettitleDom.innerHTML = GETTITLES_STR_EN;
+        scrapeButtonDom.innerHTML = SCRAPING_STR_EN;
+        startHeadNumDom.innerHTML = STARTNUM_STR_EN;
+        endHeadNumDom.innerHTML = ENDNUM_STR_EN;
+        pauseButtonDom.innerHTML = PAUSE_STR_EN;
+        opendirButtonDom.innerHTML = OPENDIR_STR_EN;
+        statusDom.innerHTML = STATUS_STR_EN;
+        topButtonDom.innerHTML = GOTOTOP_STR_EN;
+        exitButtonDom.innerHTML = EXIT_STR_EN;
+        document.documentElement.setAttribute("lang", 'en');
+      }
+    }
+  </script>
+</body>
+
+</html>

@@ -1,7 +1,7 @@
 {
   "name": "aozora-toolkit",
   "productName": "aozoratoolkit",
-  "version": "0.0.1-alpha1",
+  "version": "0.0.1",
   "description": "toolkit for aozora bunko",
   "main": "build/aozoratoolkit.js",
   "scripts": {
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.9",
-    "electron": "^41.2.0",
+    "electron": "^41.10.2",
     "electron-builder": "^26.7.0"
   },
   "build": {

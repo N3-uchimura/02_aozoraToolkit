@@ -24,7 +24,7 @@ export namespace myNums {
   export const FIRST_BOOK_ROWS: number = 1;
   export const FIRST_PAGE_ROWS: number = 2;
   export const MAX_PAGE_ROWS: number = 52;
-  export const WINDOW_WIDTH: number = 600;
+  export const WINDOW_WIDTH: number = 800;
   export const WINDOW_HEIGHT: number = 1000;
   export const MAX_AUTHORS: number = 2450;
   export const DEFAULT_QUALITY: number = 92;

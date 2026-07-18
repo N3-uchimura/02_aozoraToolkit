@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Aozora Toolkit</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/button.css">
+</head>
+
+<body>
+  <h1 id="maintitle">Aozora Editor</h1>
+  <div class="operation_area">
+    <button id="open_button" class="button-g button-6 button-wide" value="open" onclick="gotoOpen()">Open</button>
+  </div>
+  <hr>
+  <div class="operation_area">
+    <button id="extract_button" class="button-g button-wide" value="extract" onclick="gotoExtract()">Extract</button>
+  </div>
+  <div class="operation_area">
+    <button id="modify_button" class="button-g button-wide" value="modify" onclick="gotoModify();">Modify</button>
+  </div>
+  <div class="operation_area">
+    <button id="rename_button" class="button-g button-wide" value="rename" onclick="gotoRename()">Rename</button>
+  </div>
+  <div class="operation_area">
+    <button id="split_button" class="button-g button-wide" value="split" onclick="gotoSplit()">Split</button>
+  </div>
+  <div class="extra_area">
+    <h3 id="extra">Extra</h3>
+    <div id="selectarea">
+      <input type="radio" name="mode" value="first" checked><label id="firstlabel" for="first">1st line</label>
+      <input type="radio" name="mode" value="firstplus"><label id="firstpluslabel" for="firstplus">1st
+        line*</label>
+      <input type="radio" name="mode" value="second"><label id="secondlabel" for="second">2nd line</label>
+      <input type="radio" name="mode" value="third"><label id="thirdlabel" for="third">3rd line</label>
+    </div>
+    <button id="extra_button" class="button-g button-6 button-wide" value="extra" onclick="gotoExtra()">Extra</button>
+  </div>
+  <div class="operation_area">
+    <h3 id="status">Status</h3>
+    <div id="statusarea"></div>
+  </div>
+  <hr>
+  <div class="operation_area">
+    <button id="top_button" class="button-g button-wide" value="top"
+      onclick="transfer('top_page');">Top</button><br><br>
+  </div>
+  <div class="exit_area">
+    <button id="exit_button" class="button-g button-1 button-wide" value="exit"
+      onclick="transfer('exit_page');">Exit</button>
+  </div>
+  <div class="operation_area">
+    <div id="error" class="red"></div>
+  </div>
+  <footer>
+    <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
+  </footer>
+
+  <script charset="UTF-8">
+    /// japanese
+    // common
+    const APPNAME_STR_JA = '青空ツールキット';
+    const PAGENAME_STR_JA = '青空エディタ';
+    const OPENDIR_STR_JA = 'フォルダ開く';
+    const STATUS_STR_JA = 'ステータス';
+    const GOTOTOP_STR_JA = 'トップに戻る';
+    const EXIT_STR_JA = '終了';
+    // editing
+    const EXTRACT_STR_JA = 'ZIP解凍';
+    const MODIFY_STR_JA = 'TXT修正';
+    const RENAME_STR_JA = 'リネーム';
+    const SPLIT_STR_JA = '分割';
+    const FIRST_STR_JA = '1行目';
+    const FIRSTPLIS_STR_JA = '1行目*';
+    const SECOND_STR_JA = '2行目';
+    const THIRD_STR_JA = '3行目';
+    const INTRO_STR_JA = '先頭抽出';
+
+    /// english
+    // common
+    const APPNAME_STR_EN = 'Aozora Toolkit';
+    const PAGENAME_STR_EN = 'Aozora Editor';
+    const OPENDIR_STR_EN = 'OpenDir';
+    const STATUS_STR_EN = 'Status';
+    const GOTOTOP_STR_EN = 'Goto Top';
+    const EXIT_STR_EN = 'Exit';
+    // editing
+    const EXTRACT_STR_EN = 'Extract';
+    const MODIFY_STR_EN = 'Modify';
+    const RENAME_STR_EN = 'Rename';
+    const SPLIT_STR_EN = 'Split';
+    const FIRST_STR_EN = '1st line';
+    const FIRSTPLIS_STR_EN = '1 line*';
+    const SECOND_STR_EN = '2nd line';
+    const THIRD_STR_EN = '3rd line';
+    const INTRO_STR_EN = 'Extra';
+
+    /// doms
+    // common
+    const maintitleDom = document.getElementById("maintitle");
+    const opendirButtonDom = document.getElementById('open_button');
+    const statusDom = document.getElementById('status');
+    const statusAreaDom = document.getElementById('statusarea');
+    const errorDom = document.getElementById('error');
+    const topButtonDom = document.getElementById('top_button');
+    const exitButtonDom = document.getElementById('exit_button');
+    // editing
+    const extractButtonDom = document.getElementById('extract_button');
+    const modifyButtonDom = document.getElementById('modify_button');
+    const renameButtonDom = document.getElementById('rename_button');
+    const splitButtonDom = document.getElementById('split_button');
+    const firstLabelDom = document.getElementById('firstlabel');
+    const firstPlusLabelDom = document.getElementById('firstpluslabel');
+    const firstDom = document.getElementById('first');
+    const firstPlusDom = document.getElementById('firstplus');
+    const secondLabelDom = document.getElementById('secondlabel');
+    const thirdLabelDom = document.getElementById('thirdlabel');
+    const secondDom = document.getElementById('second');
+    const extraDom = document.getElementById('extra');
+    const extraButtonDom = document.getElementById('extra_button');
+
+    /// ipc
+    // before ready
+    window.api.send("beforeready");
+
+    // be ready
+    window.api.on("ready", arg => {
+      console.log('ready');
+      // change language
+      changeLanguage(arg);
+    });
+
+    // update status
+    window.api.on('statusUpdate', arg => {
+      try {
+        console.log(arg);
+        // status 
+        statusAreaDom.innerHTML = arg.status;
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    });
+
+    // update error
+    window.api.on('errorUpdate', arg => {
+      try {
+        console.log(arg);
+        // error 
+        errorDom.innerHTML = arg;
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    });
+
+    /// editing
+    // start extracting
+    const gotoExtract = () => {
+      try {
+        console.log('extracting');
+        // extract
+        window.api.send('extract');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // start modifying
+    const gotoModify = () => {
+      try {
+        console.log('modifying');
+        // modify
+        window.api.send('modify');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // start renaming
+    const gotoRename = () => {
+      try {
+        console.log('renaming');
+        // rename
+        window.api.send('rename');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // start splitting
+    const gotoSplit = () => {
+      try {
+        console.log('splitting');
+        // split
+        window.api.send('split');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // extra function
+    const gotoExtra = () => {
+      try {
+        console.log('extra');
+        // get selected
+        const value = document.querySelector("input[name='mode']:checked").value;
+        // extra
+        window.api.send('extra', value);
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    /// common
+    // page transfer
+    const transfer = channel => {
+      try {
+        // transfer
+        window.api.send("page", channel);
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // goto open dir
+    const gotoOpen = () => {
+      try {
+        // open
+        window.api.send('open');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
+    // change language
+    const changeLanguage = lang => {
+      // japanese
+      if (lang == 'japanese') {
+        document.title = APPNAME_STR_JA;
+        maintitleDom.innerHTML = PAGENAME_STR_JA;
+        extractButtonDom.innerHTML = EXTRACT_STR_JA;
+        modifyButtonDom.innerHTML = MODIFY_STR_JA;
+        renameButtonDom.innerHTML = RENAME_STR_JA;
+        splitButtonDom.innerHTML = SPLIT_STR_JA;
+        firstLabelDom.innerHTML = FIRST_STR_JA;
+        firstPlusLabelDom.innerHTML = FIRSTPLIS_STR_JA;
+        secondLabelDom.innerHTML = SECOND_STR_JA;
+        thirdLabelDom.innerHTML = THIRD_STR_JA;
+        opendirButtonDom.innerHTML = OPENDIR_STR_JA;
+        extraDom.innerHTML = INTRO_STR_JA;
+        extraButtonDom.innerHTML = INTRO_STR_JA;
+        statusDom.innerHTML = STATUS_STR_JA;
+        topButtonDom.innerHTML = GOTOTOP_STR_JA;
+        exitButtonDom.innerHTML = EXIT_STR_JA;
+        document.documentElement.setAttribute("lang", 'ja');
+        // english
+      } else {
+        document.title = APPNAME_STR_EN;
+        maintitleDom.innerHTML = PAGENAME_STR_EN;
+        extractButtonDom.innerHTML = EXTRACT_STR_EN;
+        modifyButtonDom.innerHTML = MODIFY_STR_EN;
+        renameButtonDom.innerHTML = RENAME_STR_EN;
+        splitButtonDom.innerHTML = SPLIT_STR_EN;
+        firstLabelDom.innerHTML = FIRST_STR_EN;
+        firstPlusLabelDom.innerHTML = FIRSTPLIS_STR_EN;
+        secondLabelDom.innerHTML = SECOND_STR_EN;
+        thirdLabelDom.innerHTML = THIRD_STR_EN;
+        opendirButtonDom.innerHTML = OPENDIR_STR_EN;
+        extraDom.innerHTML = INTRO_STR_EN;
+        extraButtonDom.innerHTML = INTRO_STR_EN;
+        statusDom.innerHTML = STATUS_STR_EN;
+        topButtonDom.innerHTML = GOTOTOP_STR_EN;
+        exitButtonDom.innerHTML = EXIT_STR_EN;
+        document.documentElement.setAttribute("lang", 'en');
+      }
+    }
+  </script>
+</body>
+
+</html>
