@@ -23,7 +23,6 @@ import {
 } from 'node:fs/promises'; // promise fs
 import { setTimeout } from 'node:timers/promises'; // wait for seconds
 import { exec } from 'child_process'; // child process
-import { config as dotenv } from 'dotenv'; // env
 import { BrowserWindow, app, ipcMain, Tray, Menu, nativeImage, protocol } from 'electron'; // electron
 import { autoUpdater } from 'electron-updater'; // updater
 import iconv from 'iconv-lite'; // text converter
@@ -96,8 +95,6 @@ if (!myConst.DEVMODE) {
 } else {
   globalRootPath = path.join(__dirname, '..');
 }
-// set env file
-dotenv({ path: path.join(globalRootPath, 'assets', '.env') });
 // file root path
 const fileRootPath: string = path.join(globalRootPath, 'file');
 // output root path
