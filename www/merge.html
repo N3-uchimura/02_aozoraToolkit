@@ -16,8 +16,12 @@
   </div>
   <hr>
   <div class="operation_area">
-    <button id="merge_button" class="button-g button-wide" value="merge" onclick="gotoMerge();">Merge</button>
+    <button id="selectdir_button" class="button-g button-wide" value="selectdir" onclick="gotoSelectDir();">Select
+      Directory</button>
   </div>
+  <div class="operation_area">
+    <button id="merge_button" class="button-g button-4 button-wide" value="merge" onclick="gotoMerge();">Merge</button>
+  </div><br><br>
   <div class="operation_area">
     <button id="delete_button" class="button-g button-wide" value="delete" onclick="gotoDelete();">Delete</button>
   </div>
@@ -41,7 +45,7 @@
     <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
   </footer>
 
-  <script charset="UTF-8">
+  <script charset='UTF-8'>
     /// japanese
     // common
     const APPNAME_STR_JA = '青空ツールキット';
@@ -53,6 +57,7 @@
     /// merging
     const MERGE_STR_JA = 'ファイル結合';
     const DELETE_STR_JA = 'クリア';
+    const SELECTDIR_STR_JA = 'フォルダ選択';
 
     /// english
     // common
@@ -65,10 +70,11 @@
     /// merging
     const MERGE_STR_EN = 'Merge';
     const DELETE_STR_EN = 'Delete';
+    const SELECTDIR_STR_EN = 'Select Directory';
 
     /// doms
     // common
-    const maintitleDom = document.getElementById("maintitle");
+    const maintitleDom = document.getElementById('maintitle');
     const opendirButtonDom = document.getElementById('open_button');
     const statusDom = document.getElementById('status');
     const statusAreaDom = document.getElementById('statusarea');
@@ -78,13 +84,14 @@
     // merging
     const mergeButtonDom = document.getElementById('merge_button');
     const deleteButtonDom = document.getElementById('delete_button');
+    const selectdirButtonDom = document.getElementById('selectdir_button');
 
     /// ipc
     // before ready
-    window.api.send("beforeready");
+    window.api.send('beforeready');
 
     // be ready
-    window.api.on("ready", arg => {
+    window.api.on('ready', arg => {
       console.log('ready');
       // change language
       changeLanguage(arg);
@@ -95,7 +102,7 @@
       try {
         console.log(arg);
         // status 
-        statusAreaDom.innerHTML = arg.status;
+        statusAreaDom.innerHTML = arg.status + '\n' + arg.target;
 
       } catch (e) {
         // error
@@ -117,6 +124,19 @@
     });
 
     /// merging
+    // start selectdir
+    const gotoSelectDir = () => {
+      try {
+        console.log('select dir');
+        // selectdir
+        window.api.send('selectdir');
+
+      } catch (e) {
+        // error
+        console.log(e);
+      }
+    }
+
     // start merging
     const gotoMerge = () => {
       try {
@@ -148,7 +168,7 @@
     const transfer = channel => {
       try {
         // transfer
-        window.api.send("page", channel);
+        window.api.send('page', channel);
 
       } catch (e) {
         // error
@@ -160,7 +180,7 @@
     const gotoOpen = () => {
       try {
         // scrape
-        window.api.send('open');
+        window.api.send('open', 'output');
 
       } catch (e) {
         // error
@@ -175,23 +195,25 @@
         document.title = APPNAME_STR_JA;
         maintitleDom.innerHTML = PAGENAME_STR_JA;
         opendirButtonDom.innerHTML = OPENDIR_STR_JA;
+        selectdirButtonDom.innerHTML = SELECTDIR_STR_JA;
         mergeButtonDom.innerHTML = MERGE_STR_JA;
         deleteButtonDom.innerHTML = DELETE_STR_JA;
         statusDom.innerHTML = STATUS_STR_JA;
         topButtonDom.innerHTML = GOTOTOP_STR_JA;
         exitButtonDom.innerHTML = EXIT_STR_JA;
-        document.documentElement.setAttribute("lang", 'ja');
+        document.documentElement.setAttribute('lang', 'ja');
         // english
       } else {
         document.title = APPNAME_STR_EN;
         maintitleDom.innerHTML = PAGENAME_STR_EN;
         opendirButtonDom.innerHTML = OPENDIR_STR_EN;
+        selectdirButtonDom.innerHTML = SELECTDIR_STR_EN;
         mergeButtonDom.innerHTML = MERGE_STR_EN;
         deleteButtonDom.innerHTML = DELETE_STR_EN;
         statusDom.innerHTML = STATUS_STR_EN;
         topButtonDom.innerHTML = GOTOTOP_STR_EN;
         exitButtonDom.innerHTML = EXIT_STR_EN;
-        document.documentElement.setAttribute("lang", 'en');
+        document.documentElement.setAttribute('lang', 'en');
       }
     }
   </script>

@@ -101,7 +101,7 @@ dotenv({ path: path.join(globalRootPath, 'assets', '.env') });
 // file root path
 const fileRootPath: string = path.join(globalRootPath, 'file');
 // output root path
-const outputRootPath: string = path.join(globalRootPath, myConst.OUTPUT_PATH)
+const outputRootPath: string = path.join(globalRootPath, 'file', myConst.OUTPUT_PATH)
 // desktop path
 const dir_home =
   process.env[process.platform == 'win32' ? 'USERPROFILE' : 'HOME'] ?? '';
@@ -133,7 +133,7 @@ const createWindow = (): void => {
     mainWindow.once('ready-to-show', () => {
       // dev mode
       if (!app.isPackaged) {
-        //mainWindow.webContents.openDevTools();
+        mainWindow.webContents.openDevTools();
       }
     });
 
@@ -211,7 +211,8 @@ app.on('ready', async (): Promise<void> => {
       path.join(baseFilePath, 'modified'),
       path.join(baseFilePath, 'extracted'),
       path.join(baseFilePath, 'intro'),
-      path.join(baseFilePath, 'splitted'),
+      path.join(baseFilePath, myConst.OUTPUT_PATH),
+
     ]);
     // icons
     const icon: Electron.NativeImage = nativeImage.createFromPath(
@@ -367,6 +368,651 @@ autoUpdater.addListener('update-downloaded', () => {
 /*
  IPC
 */
+
+// download
+ipcMain.on('download', async (event: any, arg: any): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      logger.info('ipc: download mode');
+      // initial flg
+      let initalFlg: boolean = true;
+      // off flg
+      globalQuitFlg = false;
+      // set mode
+      globalMode = 1;
+      // num data
+      const numArray: number[] = getArrayNum(arg);
+      // init scraper
+      await puppScraper.init();
+      // allow multiple dl
+      await puppScraper.allowMultiDl(path.join(baseFilePath, 'source'));
+
+      // URL
+      for await (const i of numArray) {
+        try {
+          if (globalQuitFlg) {
+            // error
+            throw new Error('prcess end.');
+          }
+          // target kana
+          const targetJa: string = Object.keys(myLinks.LINK_SELECTION)[i];
+          // target english kana
+          const targetEn: any = Object.values(myLinks.LINK_SELECTION)[i];
+          logger.debug(`download: getting ${targetJa} 行`);
+          // loop number
+          const childLength: number = myLinks.NUM_SELECTION[targetJa];
+
+          // within total 
+          if (childLength >= myNums.FIRST_BOOK_ROWS) {
+            logger.debug(`download: total is ${childLength}`);
+            // for loop
+            const nums: number[] = makeNumberRange(myNums.FIRST_BOOK_ROWS, childLength + 1);
+
+            // inital
+            if (initalFlg) {
+              // URL
+              event.sender.send('statusUpdate', {
+                status: `${targetJa} 行`,
+                target: 'downloading No.1'
+              });
+            }
+            initalFlg = false;
+
+            // loop
+            for await (const j of nums) {
+              try {
+                if (globalQuitFlg) {
+                  // error
+                  throw new Error('prcess end.');
+                }
+                // URL
+                const aozoraUrl: string = `${myConst.DEF_AOZORA_BOOK_URL}_${targetEn}${j}.html`;
+                logger.debug(`download: scraping ${aozoraUrl}`);
+                // move to top
+                await puppScraper.doGo(aozoraUrl);
+                logger.debug('download: doUrlScrape mode');
+                // loop number
+                const links: number[] = makeNumberRange(myNums.FIRST_PAGE_ROWS, myNums.MAX_PAGE_ROWS);
+
+                // loop
+                for await (const k of links) {
+                  try {
+                    if (globalQuitFlg) {
+                      // error
+                      throw new Error('prcess end.');
+                    }
+                    // selector
+                    const finalLinkSelector: string = mySelectors.finallink(k);
+                    // wait for 2sec
+                    await puppScraper.doWaitFor(2000);
+                    logger.debug(`download: downloading No.${k - 1}`);
+                    // wait and click
+                    await Promise.all([
+                      // wait 1sec
+                      await puppScraper.doWaitFor(1000),
+                      // url
+                      await puppScraper.doClick(finalLinkSelector),
+                    ]);
+                    // wait 1sec
+                    await puppScraper.doWaitFor(1000);
+                    // selector exists
+                    if (!await puppScraper.doCheckSelector(mySelectors.ZIPLINK_SELECTOR)) {
+                      break;
+                    }
+                    // get href
+                    const zipHref: string = await puppScraper.getHref(mySelectors.ZIPLINK_SELECTOR);
+                    logger.silly(zipHref);
+
+                    if (zipHref.includes('.zip')) {
+                      await Promise.all([
+                        // wait for 1sec
+                        await puppScraper.doWaitFor(1000),
+                        // download zip
+                        await puppScraper.doDownload(mySelectors.ZIPLINK_SELECTOR),
+                        // wait for 1sec
+                        await puppScraper.doWaitFor(1000),
+                        // goback
+                        await puppScraper.doGoBack(),
+                      ]);
+
+                    } else {
+                      // error
+                      throw new Error('err4: not zip file');
+                    }
+
+                  } catch (err1: unknown) {
+                    logger.error(err1);
+
+                  } finally {
+                    // URL
+                    event.sender.send('statusUpdate', {
+                      status: `${targetJa} 行`,
+                      target: `downloading No.${k}`
+                    });
+                  }
+                }
+                // wait for 1sec
+                await puppScraper.doWaitFor(1000);
+
+              } catch (err2: unknown) {
+                logger.error(err2);
+              }
+            }
+          }
+
+        } catch (err3: unknown) {
+          logger.error(err3);
+        }
+      }
+      // not quitting
+      if (!globalQuitFlg) {
+        // end message
+        showCompleteMessage();
+        logger.info('ipc: download completed');
+      }
+
+    } catch (e: unknown) {
+      logger.error(e);
+      reject();
+
+    } finally {
+      // close scraper
+      await puppScraper.doClose();
+    }
+    resolve();
+  });
+});
+
+// book scrape
+ipcMain.on('bookscrape', async (event: any, arg: any): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      logger.info('ipc: bookscrape mode');
+      // initial flg
+      let initalFlg: boolean = true;
+      // init array
+      globalJsonArray = [];
+      // off flg
+      globalQuitFlg = false;
+      // set mode
+      globalMode = 2;
+      // num data
+      const numArray: number[] = getArrayNum(arg);
+      // init scraper
+      await puppScraper.init();
+
+      // loop
+      for await (const i of numArray) {
+        try {
+          if (globalQuitFlg) {
+            // error
+            throw new Error('prcess end.');
+          }
+          // target kana
+          const targetJa: string = Object.keys(myLinks.LINK_SELECTION)[i];
+          // target english kana
+          const targetEn: any = Object.values(myLinks.LINK_SELECTION)[i];
+          logger.debug(`bookscrape: getting ${targetJa} 行`);
+          // loop number
+          const childLength: number = myLinks.NUM_SELECTION[targetJa];
+          // within total 
+          if (childLength >= myNums.FIRST_BOOK_ROWS) {
+            logger.debug(`bookscrape: total is ${childLength}`);
+            // for loop
+            const nums: number[] = makeNumberRange(myNums.FIRST_BOOK_ROWS, childLength + 1);
+            // loop
+            for await (const j of nums) {
+              try {
+                if (globalQuitFlg) {
+                  // error
+                  throw new Error('prcess end.');
+                }
+                // URL
+                const aozoraUrl: string = `${myConst.DEF_AOZORA_BOOK_URL}_${targetEn}${j}.html`;
+                logger.debug(`bookscrape: scraping ${aozoraUrl}`);
+                // move to top
+                await puppScraper.doGo(aozoraUrl);
+                logger.debug('bookscrape: doUrlScrape mode');
+                // loop number
+                const links: number[] = makeNumberRange(myNums.FIRST_PAGE_ROWS, myNums.MAX_PAGE_ROWS);
+
+                // inital
+                if (initalFlg) {
+                  // URL
+                  event.sender.send('statusUpdate', {
+                    status: `${targetJa} 行 ${j}`,
+                    target: 'Book No.1'
+                  });
+                }
+                initalFlg = false;
+
+                // loop
+                for await (const k of links) {
+                  try {
+                    if (globalQuitFlg) {
+                      // error
+                      throw new Error('prcess end.');
+                    }
+                    // category
+                    let targetstring: string = '';
+                    // selector
+                    const finalLinkSelector: string = mySelectors.finallink(k);
+                    // selector exists
+                    if (!await puppScraper.doCheckSelector(finalLinkSelector)) {
+                      break;
+                    }
+                    // wait for 2sec
+                    await puppScraper.doWaitFor(1000);
+
+                    // selector exists
+                    if (await puppScraper.doCheckSelector(finalLinkSelector)) {
+                      logger.debug(`bookscrape: scraping No.${k - 1}`);
+                      // wait and click
+                      await Promise.all([
+                        // wait 1sec
+                        await puppScraper.doWaitFor(1000),
+                        // url
+                        await puppScraper.doClick(finalLinkSelector),
+                      ]);
+                      // wait for 2sec
+                      await puppScraper.doWaitFor(500);
+                      // empty array
+                      let tmpObj: { [key: string]: string } = {
+                        No: '', // number
+                        bookname: '', // bookname
+                        booknameruby: '', // bookname ruby
+                        category: '', // category
+                      };
+                      // bookname
+                      const bookname: string = await puppScraper.doSingleEval(mySelectors.BOOKLINK_SELECTOR, 'innerHTML');
+                      // bookname ruby
+                      const booknameruby: string = await puppScraper.doSingleEval(mySelectors.BOOKRUBYLINK_SELECTOR, 'innerHTML');
+                      // targetstring
+                      targetstring = await puppScraper.doSingleEval(mySelectors.CATEGORYLINK_SELECTOR, 'innerHTML');
+                      // if blank reget
+                      if (targetstring.includes('仮名') || targetstring.includes('年')) {
+                        targetstring = '';
+                      } else if (targetstring == '') {
+                        targetstring = await puppScraper.doSingleEval(mySelectors.CATEGORYSUBLINK_SELECTOR, 'innerHTML');
+                      }
+                      // set each value
+                      tmpObj.No = String(k - 1);
+                      tmpObj.bookname = bookname;
+                      tmpObj.booknameruby = booknameruby;
+                      tmpObj.category = targetstring;
+                      // set to json
+                      globalJsonArray.push(tmpObj);
+                      logger.debug(`bookscrape: ${bookname}`);
+                      // goback
+                      await puppScraper.doGoBack();
+
+                    } else {
+                      // error
+                      throw new Error('err4: no download link');
+                    }
+
+                  } catch (err1: unknown) {
+                    logger.error(err1);
+
+                  } finally {
+                    // URL
+                    event.sender.send('statusUpdate', {
+                      status: `${targetJa} 行 ${j}`,
+                      target: `Book No.${k}`
+                    });
+                  }
+                }
+                // wait for 1sec
+                await puppScraper.doWaitFor(1000);
+
+              } catch (err2: unknown) {
+                logger.error(err2);
+              }
+            }
+          }
+          // not quitting
+          if (!globalQuitFlg) {
+            // csv columns
+            const bookColumns: string[] = myColumns.BOOK_COLUMNS;
+            // nowtime
+            const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
+            // csv filename
+            const filePath: string = path.join(dir_desktop, `【book】${nowTimeStr}_${targetJa}行.csv`);
+            // write data
+            await csvMaker.makeCsvData(globalJsonArray, bookColumns, filePath);
+          }
+
+        } catch (err3: unknown) {
+          logger.error(err3);
+        }
+      }
+      // not quitting
+      if (!globalQuitFlg) {
+        // end message
+        showCompleteMessage();
+        logger.info('ipc: bookscrape completed');
+      } else {
+        // error
+        throw new Error('prcess end.');
+      }
+
+    } catch (e: unknown) {
+      logger.error(e);
+      reject();
+
+    } finally {
+      // close scraper
+      await puppScraper.doClose();
+    }
+    resolve();
+  });
+});
+
+// authorscrape
+ipcMain.on('authorscrape', async (event: any, arg: any): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      logger.info('ipc: authorscrape mode');
+      // init array
+      globalJsonArray = [];
+      // off flg
+      globalQuitFlg = false;
+      // set mode
+      globalMode = 3;
+      // no
+      const startNo: number = Number(arg.start);
+      const endNo: number = Number(arg.end);
+      // init scraper
+      await puppScraper.init();
+      // URL
+      logger.debug(`authorscrape: total is ${endNo}`);
+      // for loop
+      const nums: number[] = makeNumberRange(startNo, endNo);
+
+      // loop
+      for await (const i of nums) {
+        try {
+          if (globalQuitFlg) {
+            // error
+            throw new Error('prcess end.');
+          }
+          // URL
+          const aozoraUrl: string = `${myConst.DEF_AOZORA_AUTHOR_URL}${i}.html`;
+          logger.silly(`authorscrape: scraping ${aozoraUrl}`);
+          // empty array
+          let tmpObj: { [key: string]: string } = {
+            No: '', // number
+            author: '', // authorname
+            authorruby: '', // ruby
+            roman: '', // roman
+            birth: '', // birth
+            bod: '', // dod
+            about: '', // about
+          };
+          // move to top
+          await puppScraper.doGo(aozoraUrl);
+          logger.silly('bookscrape: doUrlScrape mode');
+          // row loop number
+          const rows: number[] = makeNumberRange(1, 6);
+          // insert no.
+          tmpObj[myColumns.AUTHOR_COLUMNS[0]] = i.toString();
+          // URL
+          event.sender.send('statusUpdate', {
+            status: `Author No.${1}`, // status
+            target: `Page.${i}` // page
+          });
+
+          // loop
+          for await (const j of rows) {
+            try {
+              if (globalQuitFlg) {
+                // error
+                throw new Error('prcess end.');
+              }
+              logger.silly(`authorscrape: scraping No.${j}`);
+              // target column
+              const targetColumn: string = myColumns.AUTHOR_COLUMNS[j];
+              // selector
+              let finalLinkSelector: string = mySelectors.authorlink(j);
+              // selector exists
+              if (!await puppScraper.doCheckSelector(finalLinkSelector)) {
+                logger.silly(`No.${j}: no selector`);
+                break;
+              }
+              // when title link
+              if (j == 1) {
+                finalLinkSelector += ' > font'
+              }
+              // wait for 2sec
+              await puppScraper.doWaitFor(500);
+              // wait and click
+              const targetstring: string = await puppScraper.doSingleEval(finalLinkSelector, 'innerHTML');
+              // set to tmpObj
+              tmpObj[targetColumn] = targetstring;
+              logger.silly(`authorscrape: ${targetstring}`);
+              // wait 0.5 sec
+              await puppScraper.doWaitFor(500);
+
+            } catch (err1: unknown) {
+              logger.error(err1);
+
+            } finally {
+              // URL
+              event.sender.send('statusUpdate', {
+                status: `Author No.${j}`, // status
+                target: `scraping Page.${i}` // page
+              });
+            }
+          }
+          // set to finalArray
+          globalJsonArray.push(tmpObj);
+          // wait for 1sec
+          await puppScraper.doWaitFor(1000);
+
+        } catch (err2: unknown) {
+          logger.error(err2);
+        }
+      }
+      // not quitting
+      if (!globalQuitFlg) {
+        logger.debug('authorscrape: making csv...');
+        // nowtime
+        const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
+        // csv filename
+        const filePath: string = path.join(dir_desktop, `【author】${nowTimeStr}-${startNo}_${endNo}.csv`);
+        // write data
+        await csvMaker.makeCsvData(globalJsonArray, myColumns.AUTHOR_COLUMNS, filePath);
+        // wait for 1sec
+        await puppScraper.doWaitFor(1000);
+        // end message
+        showCompleteMessage();
+        logger.info('ipc: authorscrape completed');
+      }
+
+    } catch (e: unknown) {
+      logger.error(e);
+      reject();
+
+    } finally {
+      // close scraper
+      await puppScraper.doClose();
+    }
+    resolve();
+  });
+});
+
+// titlescrape
+ipcMain.on('titlescrape', async (event: any, arg: any): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      logger.info('ipc: titlescrape mode');
+      // initial flg
+      let initalFlg: boolean = true;
+      // init array
+      globalJsonArray = [];
+      // off flg
+      globalQuitFlg = false;
+      // set mode
+      globalMode = 4;
+      // init scraper
+      await puppScraper.init();
+      // num data
+      const numArray: number[] = getArrayNum(arg);
+
+      // URL
+      for await (const i of numArray) {
+        try {
+          if (globalQuitFlg) {
+            // error
+            throw new Error('prcess end.');
+          }
+          // target kana
+          const targetJa: string = Object.keys(myLinks.LINK_SELECTION)[i];
+          // target english kana
+          const targetEn: any = Object.values(myLinks.LINK_SELECTION)[i];
+          logger.debug(`titlescrape: getting ${targetJa} 行`);
+          // loop number
+          const childLength: number = myLinks.NUM_SELECTION[targetJa];
+          // inital
+          if (initalFlg) {
+            // URL
+            event.sender.send('statusUpdate', {
+              status: `Title ${targetJa} 行 1`,
+              target: `Page.1 No.${1}`
+            });
+          }
+          initalFlg = false;
+
+          // within total 
+          if (childLength >= myNums.FIRST_BOOK_ROWS) {
+            logger.debug(`titlescrape: total is ${childLength}`);
+            // for loop
+            const nums: number[] = makeNumberRange(myNums.FIRST_BOOK_ROWS, childLength + 1);
+            // loop
+            for await (const j of nums) {
+              try {
+                if (globalQuitFlg) {
+                  // error
+                  throw new Error('prcess end.');
+                }
+                // tmp array
+                let tmpArray: any = [];
+                // URL
+                const aozoraUrl: string = `${myConst.DEF_AOZORA_BOOK_URL}_${targetEn}${j}.html`;
+                logger.silly(`titlescrape: scraping ${aozoraUrl}`);
+                // move to top
+                await puppScraper.doGo(aozoraUrl);
+                // row loop number
+                const rows: number[] = makeNumberRange(myNums.FIRST_PAGE_ROWS, myNums.MAX_PAGE_ROWS);
+                // column loop number
+                const columns: number[] = makeNumberRange(0, 6);
+
+                // loop
+                for await (const k of rows) {
+                  try {
+                    if (globalQuitFlg) {
+                      // error
+                      throw new Error('prcess end.');
+                    }
+                    tmpArray = [];
+                    // empty array
+                    let tmpObj: { [key: string]: string } = {
+                      No: '', // number
+                      title: '', // title
+                      lettering: '', // ruby
+                      author: '', // authorname
+                      authorname: '', // authorbasename
+                      translator: '', // editor
+                    };
+                    // loop
+                    for await (const m of columns) {
+                      try {
+                        if (globalQuitFlg) {
+                          // error
+                          throw new Error('prcess end.');
+                        }
+                        // target column
+                        const targetColumn: string = myColumns.TITLE_COLUMNS[m];
+                        // selector
+                        let finalLinkSelector: string = mySelectors.titlelink(k, m + 1);
+                        // when title link
+                        if (m == 1) {
+                          finalLinkSelector += ' > a';
+                        }
+                        // wait for 2sec
+                        await puppScraper.doWaitFor(500);
+                        // wait and click
+                        const targetstring: string = await puppScraper.doSingleEval(finalLinkSelector, 'innerHTML');
+                        // set to tmpObj
+                        tmpObj[targetColumn] = targetstring;
+
+                        logger.silly(`titlescrape: ${targetstring}`);
+                        // wait 0.5 sec
+                        await puppScraper.doWaitFor(500);
+
+                      } catch (err1: unknown) {
+                        logger.error(err1);
+                      }
+
+                    }
+                    // push into tmp array
+                    tmpArray.push(tmpObj);
+
+                  } catch (err2: unknown) {
+                    logger.error(err2);
+
+                  } finally {
+                    // URL
+                    event.sender.send('statusUpdate', {
+                      status: `Title ${targetJa} 行`, // status
+                      target: `Page.${j} No.${k}` // page
+                    });
+                  }
+                  // set to finalArray
+                  globalJsonArray.push(tmpArray);
+                }
+                // wait for 1sec
+                await puppScraper.doWaitFor(1000);
+
+              } catch (err3: unknown) {
+                logger.error(err3);
+              }
+            }
+            // not quitting
+            if (!globalQuitFlg) {
+              logger.debug('titlescrape: making csv...');
+              // nowtime
+              const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
+              // csv filename
+              const filePath: string = path.join(dir_desktop, `【title】${nowTimeStr}_${targetJa}行.csv`);
+              // write data
+              await csvMaker.makeCsvData(globalJsonArray.flat(), myColumns.TITLE_COLUMNS, filePath);
+            }
+          }
+
+        } catch (err4: unknown) {
+          logger.error(err4);
+        }
+      }
+      // not quitting
+      if (!globalQuitFlg) {
+        // end message
+        showCompleteMessage();
+        logger.info('ipc: titlescrape completed');
+      }
+
+    } catch (e: unknown) {
+      logger.error(e);
+      reject();
+
+    } finally {
+      // close scraper
+      await puppScraper.doClose();
+    }
+    resolve();
+  });
+});
+
 /// editor
 // extract
 ipcMain.on('extract', async (): Promise<void> => {
@@ -387,7 +1033,7 @@ ipcMain.on('extract', async (): Promise<void> => {
         }
       }
       logger.debug('extract: zip exists');
-      // delete all
+      // delete tmp files
       await fileManager.rmDir(path.join(baseFilePath, 'tmp'));
       // complete
       logger.debug('ipc: delete tmp files completed.');
@@ -620,7 +1266,7 @@ ipcMain.on('rename', async (): Promise<void> => {
             try {
               // file name
               let newFileName: string = '';
-              // renamed path
+              // modified path
               const rootFilePath: string = path.join(baseFilePath, 'modified');
               // file path
               const filePath: string = path.join(rootFilePath, fl);
@@ -1025,48 +1671,20 @@ ipcMain.on('page', async (event: any, arg: any): Promise<void> => {
 });
 
 // open
-ipcMain.on('open', (_: any, __: any): void => {
+ipcMain.on('open', (_: any, arg: any): void => {
   try {
     logger.info('app: open dir');
+    // dir path
+    const targetPath: string = arg ? path.join(baseFilePath, arg) : baseFilePath;
     // switch on OS
     const command =
       process.platform === 'win32'
-        ? `explorer "${baseFilePath}"`
+        ? `explorer "${targetPath}"`
         : process.platform === 'darwin'
-          ? `open "${baseFilePath}"`
-          : `xdg-open "${baseFilePath}"`;
+          ? `open "${targetPath}"`
+          : `xdg-open "${targetPath}"`;
     // open root dir
     exec(command);
-
-  } catch (e: unknown) {
-    logger.error(e);
-    // error
-    if (e instanceof Error) {
-      // error message
-      dialogMaker.showmessage('error', e.message);
-    }
-  }
-});
-
-// delete
-ipcMain.on('delete', (_, __): void => {
-  try {
-    logger.info('app: delete app');
-    // language
-    const language = cacheMaker.get('language') ?? 'japanese';
-    // status message
-    let finishedMessage: string = '';
-    // switch on language
-    if (language == 'japanese') {
-      // set finish message
-      finishedMessage = '完了しました';
-    } else {
-      // set finish message
-      finishedMessage = 'Finished.';
-    }
-    // finish message
-    dialogMaker.showmessage('info', finishedMessage);
-    logger.info('ipc: operation finished.');
 
   } catch (e: unknown) {
     logger.error(e);
@@ -1116,47 +1734,47 @@ ipcMain.on('exit', (): void => {
 
 /// scraping
 // pause
-ipcMain.on("pause", async (_: any, __: any): Promise<void> => {
+ipcMain.on('pause', async (_: any, __: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
-      logger.info("ipc: pause mode");
+      logger.info('ipc: pause mode');
       // mode
-      let tmpModeStr: string = "";
+      let tmpModeStr: string = '';
       // mode
       let tmpColumns: string[] = [];
       // quit flg on
       globalQuitFlg = true;
       switch (globalMode) {
         case 1:
-          tmpModeStr = "download";
+          tmpModeStr = 'download';
           break;
         case 2:
-          tmpModeStr = "book";
+          tmpModeStr = 'book';
           tmpColumns = myColumns.BOOK_COLUMNS;
           break;
         case 3:
-          tmpModeStr = "author";
+          tmpModeStr = 'author';
           tmpColumns = myColumns.AUTHOR_COLUMNS;
           break;
         case 4:
-          tmpModeStr = "title";
+          tmpModeStr = 'title';
           tmpColumns = myColumns.TITLE_COLUMNS;
           break;
         default:
-          logger.debug("out of mode");
+          logger.debug('out of mode');
       }
       // only except for download
       if (globalMode > 1) {
         // nowtime
         const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
         // csv filename
-        const filePath: string = path.join(globalRootPath, myConst.OUTPUT_PATH, `【${tmpModeStr}】${nowTimeStr}-halfway.csv`);
+        const filePath: string = path.join(dir_desktop, `【${tmpModeStr}】${nowTimeStr}-halfway.csv`);
         // write data
         await csvMaker.makeCsvData(globalJsonArray.flat(), tmpColumns, filePath);
-        logger.debug("CSV writing finished");
+        logger.debug('CSV writing finished');
       }
       // show finished message
-      dialogMaker.showmessage("info", "scraping stopped");
+      dialogMaker.showmessage('info', 'scraping stopped');
       resolve();
 
     } catch (e: unknown) {
@@ -1165,7 +1783,7 @@ ipcMain.on("pause", async (_: any, __: any): Promise<void> => {
       // error
       if (e instanceof Error) {
         // show error
-        dialogMaker.showmessage("error", `${e.message}`);
+        dialogMaker.showmessage('error', `${e.message}`);
       }
       reject();
 
@@ -1176,651 +1794,6 @@ ipcMain.on("pause", async (_: any, __: any): Promise<void> => {
   });
 });
 
-// download
-ipcMain.on('download', async (event: any, arg: any): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      logger.info('ipc: download mode');
-      // initial flg
-      let initalFlg: boolean = true;
-      // off flg
-      globalQuitFlg = false;
-      // set mode
-      globalMode = 1;
-      // num data
-      const numArray: number[] = getArrayNum(arg);
-      // init scraper
-      await puppScraper.init();
-      // allow multiple dl
-      await puppScraper.allowMultiDl(path.join(globalRootPath, myConst.OUTPUT_PATH));
-
-      // URL
-      for await (const i of numArray) {
-        try {
-          if (globalQuitFlg) {
-            // error
-            throw new Error('prcess end.');
-          }
-          // target kana
-          const targetJa: string = Object.keys(myLinks.LINK_SELECTION)[i];
-          // target english kana
-          const targetEn: any = Object.values(myLinks.LINK_SELECTION)[i];
-          logger.debug(`download: getting ${targetJa} 行`);
-          // loop number
-          const childLength: number = myLinks.NUM_SELECTION[targetJa];
-
-          // within total 
-          if (childLength >= myNums.FIRST_BOOK_ROWS) {
-            logger.debug(`download: total is ${childLength}`);
-            // for loop
-            const nums: number[] = makeNumberRange(myNums.FIRST_BOOK_ROWS, childLength + 1);
-
-            // inital
-            if (initalFlg) {
-              // URL
-              event.sender.send('statusUpdate', {
-                status: `${targetJa} 行`,
-                target: 'downloading No.1'
-              });
-            }
-            initalFlg = false;
-
-            // loop
-            for await (const j of nums) {
-              try {
-                if (globalQuitFlg) {
-                  // error
-                  throw new Error('prcess end.');
-                }
-                // URL
-                const aozoraUrl: string = `${myConst.DEF_AOZORA_BOOK_URL}_${targetEn}${j}.html`;
-                logger.debug(`download: scraping ${aozoraUrl}`);
-                // move to top
-                await puppScraper.doGo(aozoraUrl);
-                logger.debug('download: doUrlScrape mode');
-                // loop number
-                const links: number[] = makeNumberRange(myNums.FIRST_PAGE_ROWS, myNums.MAX_PAGE_ROWS);
-
-                // loop
-                for await (const k of links) {
-                  try {
-                    if (globalQuitFlg) {
-                      // error
-                      throw new Error('prcess end.');
-                    }
-                    // selector
-                    const finalLinkSelector: string = mySelectors.finallink(k);
-                    // wait for 2sec
-                    await puppScraper.doWaitFor(2000);
-                    logger.debug(`download: downloading No.${k - 1}`);
-                    // wait and click
-                    await Promise.all([
-                      // wait 1sec
-                      await puppScraper.doWaitFor(1000),
-                      // url
-                      await puppScraper.doClick(finalLinkSelector),
-                    ]);
-                    // wait 1sec
-                    await puppScraper.doWaitFor(1000);
-                    // selector exists
-                    if (!await puppScraper.doCheckSelector(mySelectors.ZIPLINK_SELECTOR)) {
-                      break;
-                    }
-                    // get href
-                    const zipHref: string = await puppScraper.getHref(mySelectors.ZIPLINK_SELECTOR);
-                    logger.silly(zipHref);
-
-                    if (zipHref.includes('.zip')) {
-                      await Promise.all([
-                        // wait for 1sec
-                        await puppScraper.doWaitFor(1000),
-                        // download zip
-                        await puppScraper.doDownload(mySelectors.ZIPLINK_SELECTOR),
-                        // wait for 1sec
-                        await puppScraper.doWaitFor(1000),
-                        // goback
-                        await puppScraper.doGoBack(),
-                      ]);
-
-                    } else {
-                      // error
-                      throw new Error('err4: not zip file');
-                    }
-
-                  } catch (err1: unknown) {
-                    logger.error(err1);
-
-                  } finally {
-                    // URL
-                    event.sender.send('statusUpdate', {
-                      status: `${targetJa} 行`,
-                      target: `downloading No.${k}`
-                    });
-                  }
-                }
-                // wait for 1sec
-                await puppScraper.doWaitFor(1000);
-
-              } catch (err2: unknown) {
-                logger.error(err2);
-              }
-            }
-          }
-
-        } catch (err3: unknown) {
-          logger.error(err3);
-        }
-      }
-      // not quitting
-      if (!globalQuitFlg) {
-        // end message
-        showCompleteMessage();
-        logger.info('ipc: download completed');
-      }
-
-    } catch (e: unknown) {
-      logger.error(e);
-      reject();
-
-    } finally {
-      // close scraper
-      await puppScraper.doClose();
-    }
-    resolve();
-  });
-});
-
-// book scrape
-ipcMain.on('bookscrape', async (event: any, arg: any): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      logger.info('ipc: bookscrape mode');
-      // initial flg
-      let initalFlg: boolean = true;
-      // init array
-      globalJsonArray = [];
-      // off flg
-      globalQuitFlg = false;
-      // set mode
-      globalMode = 2;
-      // num data
-      const numArray: number[] = getArrayNum(arg);
-      // init scraper
-      await puppScraper.init();
-
-      // loop
-      for await (const i of numArray) {
-        try {
-          if (globalQuitFlg) {
-            // error
-            throw new Error('prcess end.');
-          }
-          // target kana
-          const targetJa: string = Object.keys(myLinks.LINK_SELECTION)[i];
-          // target english kana
-          const targetEn: any = Object.values(myLinks.LINK_SELECTION)[i];
-          logger.debug(`bookscrape: getting ${targetJa} 行`);
-          // loop number
-          const childLength: number = myLinks.NUM_SELECTION[targetJa];
-          // within total 
-          if (childLength >= myNums.FIRST_BOOK_ROWS) {
-            logger.debug(`bookscrape: total is ${childLength}`);
-            // for loop
-            const nums: number[] = makeNumberRange(myNums.FIRST_BOOK_ROWS, childLength + 1);
-
-            // loop
-            for await (const j of nums) {
-              try {
-                if (globalQuitFlg) {
-                  // error
-                  throw new Error('prcess end.');
-                }
-                // URL
-                const aozoraUrl: string = `${myConst.DEF_AOZORA_BOOK_URL}_${targetEn}${j}.html`;
-                logger.debug(`bookscrape: scraping ${aozoraUrl}`);
-                // move to top
-                await puppScraper.doGo(aozoraUrl);
-                logger.debug('bookscrape: doUrlScrape mode');
-                // loop number
-                const links: number[] = makeNumberRange(myNums.FIRST_PAGE_ROWS, myNums.MAX_PAGE_ROWS);
-
-                // inital
-                if (initalFlg) {
-                  // URL
-                  event.sender.send('statusUpdate', {
-                    status: `${targetJa} 行 ${j}`,
-                    target: 'scraping No.1'
-                  });
-                }
-                initalFlg = false;
-
-                // loop
-                for await (const k of links) {
-                  try {
-                    if (globalQuitFlg) {
-                      // error
-                      throw new Error('prcess end.');
-                    }
-                    // category
-                    let targetstring: string = '';
-                    // selector
-                    const finalLinkSelector: string = mySelectors.finallink(k);
-                    // selector exists
-                    if (!await puppScraper.doCheckSelector(finalLinkSelector)) {
-                      break;
-                    }
-                    // wait for 2sec
-                    await puppScraper.doWaitFor(1000);
-
-                    // selector exists
-                    if (await puppScraper.doCheckSelector(finalLinkSelector)) {
-                      logger.debug(`bookscrape: scraping No.${k - 1}`);
-                      // wait and click
-                      await Promise.all([
-                        // wait 1sec
-                        await puppScraper.doWaitFor(1000),
-                        // url
-                        await puppScraper.doClick(finalLinkSelector),
-                      ]);
-                      // wait for 2sec
-                      await puppScraper.doWaitFor(500);
-                      // empty array
-                      let tmpObj: { [key: string]: string } = {
-                        No: '', // number
-                        bookname: '', // bookname
-                        booknameruby: '', // bookname ruby
-                        category: '', // category
-                      };
-                      // bookname
-                      const bookname: string = await puppScraper.doSingleEval(mySelectors.BOOKLINK_SELECTOR, 'innerHTML');
-                      // bookname ruby
-                      const booknameruby: string = await puppScraper.doSingleEval(mySelectors.BOOKRUBYLINK_SELECTOR, 'innerHTML');
-                      // targetstring
-                      targetstring = await puppScraper.doSingleEval(mySelectors.CATEGORYLINK_SELECTOR, 'innerHTML');
-                      // if blank reget
-                      if (targetstring.includes('仮名') || targetstring.includes('年')) {
-                        targetstring = '';
-                      } else if (targetstring == '') {
-                        targetstring = await puppScraper.doSingleEval(mySelectors.CATEGORYSUBLINK_SELECTOR, 'innerHTML');
-                      }
-                      // set each value
-                      tmpObj.No = String(k - 1);
-                      tmpObj.bookname = bookname;
-                      tmpObj.booknameruby = booknameruby;
-                      tmpObj.category = targetstring;
-                      // set to json
-                      globalJsonArray.push(tmpObj);
-                      logger.debug(`bookscrape: ${bookname}`);
-                      // goback
-                      await puppScraper.doGoBack();
-
-                    } else {
-                      // error
-                      throw new Error('err4: no download link');
-                    }
-
-                  } catch (err1: unknown) {
-                    logger.error(err1);
-
-                  } finally {
-                    // URL
-                    event.sender.send('statusUpdate', {
-                      status: `${targetJa} 行 ${j}`,
-                      target: `scraping No.${k}`
-                    });
-                  }
-                }
-                // wait for 1sec
-                await puppScraper.doWaitFor(1000);
-
-              } catch (err2: unknown) {
-                logger.error(err2);
-              }
-            }
-          }
-          // not quitting
-          if (!globalQuitFlg) {
-            // csv columns
-            const bookColumns: string[] = myColumns.BOOK_COLUMNS;
-            // nowtime
-            const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
-            // csv filename
-            const filePath: string = path.join(globalRootPath, myConst.OUTPUT_PATH, `【book】${nowTimeStr}_${targetJa}行.csv`);
-            // write data
-            await csvMaker.makeCsvData(globalJsonArray, bookColumns, filePath);
-          }
-
-        } catch (err3: unknown) {
-          logger.error(err3);
-        }
-      }
-      // not quitting
-      if (!globalQuitFlg) {
-        // end message
-        showCompleteMessage();
-        logger.info('ipc: bookscrape completed');
-      } else {
-        // error
-        throw new Error('prcess end.');
-      }
-
-    } catch (e: unknown) {
-      logger.error(e);
-      reject();
-
-    } finally {
-      // close scraper
-      await puppScraper.doClose();
-    }
-    resolve();
-  });
-});
-
-// authorscrape
-ipcMain.on('authorscrape', async (event: any, arg: any): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      logger.info('ipc: authorscrape mode');
-      // init array
-      globalJsonArray = [];
-      // off flg
-      globalQuitFlg = false;
-      // set mode
-      globalMode = 3;
-      // no
-      const startNo: number = Number(arg.start);
-      const endNo: number = Number(arg.end);
-      // init scraper
-      await puppScraper.init();
-      // URL
-      logger.debug(`authorscrape: total is ${endNo}`);
-      // for loop
-      const nums: number[] = makeNumberRange(startNo, endNo);
-
-      // loop
-      for await (const i of nums) {
-        try {
-          if (globalQuitFlg) {
-            // error
-            throw new Error('prcess end.');
-          }
-          // URL
-          const aozoraUrl: string = `${myConst.DEF_AOZORA_AUTHOR_URL}${i}.html`;
-          logger.silly(`authorscrape: scraping ${aozoraUrl}`);
-          // empty array
-          let tmpObj: { [key: string]: string } = {
-            No: '', // number
-            author: '', // authorname
-            authorruby: '', // ruby
-            roman: '', // roman
-            birth: '', // birth
-            bod: '', // dod
-            about: '', // about
-          };
-          // move to top
-          await puppScraper.doGo(aozoraUrl);
-          logger.silly('bookscrape: doUrlScrape mode');
-          // row loop number
-          const rows: number[] = makeNumberRange(1, 6);
-          // insert no.
-          tmpObj[myColumns.AUTHOR_COLUMNS[0]] = i.toString();
-          // URL
-          event.sender.send('statusUpdate', {
-            status: `No.${1}`, // status
-            target: `scraping Page.${i}` // page
-          });
-
-          // loop
-          for await (const j of rows) {
-            try {
-              if (globalQuitFlg) {
-                // error
-                throw new Error('prcess end.');
-              }
-              logger.silly(`authorscrape: scraping No.${j}`);
-              // target column
-              const targetColumn: string = myColumns.AUTHOR_COLUMNS[j];
-              // selector
-              let finalLinkSelector: string = mySelectors.authorlink(j);
-              // selector exists
-              if (!await puppScraper.doCheckSelector(finalLinkSelector)) {
-                logger.silly(`No.${j}: no selector`);
-                break;
-              }
-              // when title link
-              if (j == 1) {
-                finalLinkSelector += ' > font'
-              }
-              // wait for 2sec
-              await puppScraper.doWaitFor(500);
-              // wait and click
-              const targetstring: string = await puppScraper.doSingleEval(finalLinkSelector, 'innerHTML');
-              // set to tmpObj
-              tmpObj[targetColumn] = targetstring;
-              logger.silly(`authorscrape: ${targetstring}`);
-              // wait 0.5 sec
-              await puppScraper.doWaitFor(500);
-
-            } catch (err1: unknown) {
-              logger.error(err1);
-
-            } finally {
-              // URL
-              event.sender.send('statusUpdate', {
-                status: `No.${j}`, // status
-                target: `scraping Page.${i}` // page
-              });
-            }
-          }
-          // set to finalArray
-          globalJsonArray.push(tmpObj);
-          // wait for 1sec
-          await puppScraper.doWaitFor(1000);
-
-        } catch (err2: unknown) {
-          logger.error(err2);
-        }
-      }
-      // not quitting
-      if (!globalQuitFlg) {
-        logger.debug('authorscrape: making csv...');
-        // nowtime
-        const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
-        // csv filename
-        const filePath: string = path.join(globalRootPath, myConst.OUTPUT_PATH, `【author】${nowTimeStr}-${startNo}_${endNo}.csv`);
-        // write data
-        await csvMaker.makeCsvData(globalJsonArray, myColumns.AUTHOR_COLUMNS, filePath);
-        // wait for 1sec
-        await puppScraper.doWaitFor(1000);
-        // end message
-        showCompleteMessage();
-        logger.info('ipc: authorscrape completed');
-      }
-
-    } catch (e: unknown) {
-      logger.error(e);
-      reject();
-
-    } finally {
-      // close scraper
-      await puppScraper.doClose();
-    }
-    resolve();
-  });
-});
-
-// titlescrape
-ipcMain.on('titlescrape', async (event: any, arg: any): Promise<void> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      logger.info('ipc: titlescrape mode');
-      // initial flg
-      let initalFlg: boolean = true;
-      // init array
-      globalJsonArray = [];
-      // off flg
-      globalQuitFlg = false;
-      // set mode
-      globalMode = 4;
-
-      // init scraper
-      await puppScraper.init();
-      // num data
-      const numArray: number[] = getArrayNum(arg);
-
-      // URL
-      for await (const i of numArray) {
-        try {
-          if (globalQuitFlg) {
-            // error
-            throw new Error('prcess end.');
-          }
-          // target kana
-          const targetJa: string = Object.keys(myLinks.LINK_SELECTION)[i];
-          // target english kana
-          const targetEn: any = Object.values(myLinks.LINK_SELECTION)[i];
-          logger.debug(`titlescrape: getting ${targetJa} 行`);
-          // loop number
-          const childLength: number = myLinks.NUM_SELECTION[targetJa];
-          // inital
-          if (initalFlg) {
-            // URL
-            event.sender.send('statusUpdate', {
-              status: `${targetJa} 行 1`,
-              target: `scraping No.${1}`
-            });
-          }
-          initalFlg = false;
-
-          // within total 
-          if (childLength >= myNums.FIRST_BOOK_ROWS) {
-            logger.debug(`titlescrape: total is ${childLength}`);
-            // for loop
-            const nums: number[] = makeNumberRange(myNums.FIRST_BOOK_ROWS, childLength + 1);
-            // loop
-            for await (const j of nums) {
-              try {
-                if (globalQuitFlg) {
-                  // error
-                  throw new Error('prcess end.');
-                }
-                // tmp array
-                let tmpArray: any = [];
-                // URL
-                const aozoraUrl: string = `${myConst.DEF_AOZORA_BOOK_URL}_${targetEn}${j}.html`;
-                logger.silly(`titlescrape: scraping ${aozoraUrl}`);
-                // move to top
-                await puppScraper.doGo(aozoraUrl);
-                // row loop number
-                const rows: number[] = makeNumberRange(myNums.FIRST_PAGE_ROWS, myNums.MAX_PAGE_ROWS);
-                // column loop number
-                const columns: number[] = makeNumberRange(0, 6);
-
-                // loop
-                for await (const k of rows) {
-                  try {
-                    if (globalQuitFlg) {
-                      // error
-                      throw new Error('prcess end.');
-                    }
-                    tmpArray = [];
-                    // empty array
-                    let tmpObj: { [key: string]: string } = {
-                      No: '', // number
-                      title: '', // title
-                      lettering: '', // ruby
-                      author: '', // authorname
-                      authorname: '', // authorbasename
-                      translator: '', // editor
-                    };
-                    // loop
-                    for await (const m of columns) {
-                      try {
-                        if (globalQuitFlg) {
-                          // error
-                          throw new Error('prcess end.');
-                        }
-                        // target column
-                        const targetColumn: string = myColumns.TITLE_COLUMNS[m];
-                        // selector
-                        let finalLinkSelector: string = mySelectors.titlelink(k, m + 1);
-                        // when title link
-                        if (m == 1) {
-                          finalLinkSelector += ' > a';
-                        }
-                        // wait for 2sec
-                        await puppScraper.doWaitFor(500);
-                        // wait and click
-                        const targetstring: string = await puppScraper.doSingleEval(finalLinkSelector, 'innerHTML');
-                        // set to tmpObj
-                        tmpObj[targetColumn] = targetstring;
-
-                        logger.silly(`titlescrape: ${targetstring}`);
-                        // wait 0.5 sec
-                        await puppScraper.doWaitFor(500);
-
-                      } catch (err1: unknown) {
-                        logger.error(err1);
-                      }
-
-                    }
-                    // push into tmp array
-                    tmpArray.push(tmpObj);
-
-                  } catch (err2: unknown) {
-                    logger.error(err2);
-
-                  } finally {
-                    // URL
-                    event.sender.send('statusUpdate', {
-                      status: `${targetJa} 行`, // status
-                      target: `Page.${j} No.${k}` // page
-                    });
-                  }
-                  // set to finalArray
-                  globalJsonArray.push(tmpArray);
-                }
-                // wait for 1sec
-                await puppScraper.doWaitFor(1000);
-
-              } catch (err3: unknown) {
-                logger.error(err3);
-              }
-            }
-            // not quitting
-            if (!globalQuitFlg) {
-              logger.debug('titlescrape: making csv...');
-              // nowtime
-              const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
-              // csv filename
-              const filePath: string = path.join(globalRootPath, myConst.OUTPUT_PATH, `【title】${nowTimeStr}_${targetJa}行.csv`);
-              // write data
-              await csvMaker.makeCsvData(globalJsonArray.flat(), myColumns.TITLE_COLUMNS, filePath);
-            }
-          }
-
-        } catch (err4: unknown) {
-          logger.error(err4);
-        }
-      }
-      // not quitting
-      if (!globalQuitFlg) {
-        // end message
-        showCompleteMessage();
-        logger.info('ipc: titlescrape completed');
-      }
-
-    } catch (e: unknown) {
-      logger.error(e);
-      reject();
-
-    } finally {
-      // close scraper
-      await puppScraper.doClose();
-    }
-    resolve();
-  });
-});
 
 /// converting
 // selectdir
@@ -1880,15 +1853,15 @@ ipcMain.on('convert', async (event: any, arg: any): Promise<void> => {
         try {
           // original wav path
           const originalWavPath: string = path.join(targetPath, audioname);
-          // partial output path
-          const partialFinalPath: string = path.join(outputRootPath, `${path.parse(audioname).name}.${targetType}`);
+          // output path
+          const fileFinalPath: string = path.join(outputRootPath, `${path.parse(audioname).name}.${targetType}`);
           // switch on extension
-          if (targetType == "m4a") {
+          if (targetType == 'm4a') {
             // convert to m4a
-            await ffmpegManager.convertAudioToM4a(originalWavPath, partialFinalPath, quality, rate);
-          } else if (targetType == "flac") {
+            await ffmpegManager.convertAudioToM4a(originalWavPath, fileFinalPath, quality, rate);
+          } else if (targetType == 'flac') {
             // convert to flac
-            await ffmpegManager.convertAudioToFlac(originalWavPath, partialFinalPath, quality, rate);
+            await ffmpegManager.convertAudioToFlac(originalWavPath, fileFinalPath, quality, rate);
           } else {
             // error
             throw new Error('ipc: no match type');
@@ -1942,26 +1915,22 @@ ipcMain.on('merge', async (event: any, _) => {
       let statusmessage: string;
       // unit
       let tmpUnit: string;
-      // backup option
-      const backupOption: any = {
-        recursive: true,
-      }
-      // backup all
-      await cp(path.join(fileRootPath, 'partial'), path.join(fileRootPath, 'backup'), backupOption);
-      logger.debug('merge: backup to file/backup dir');
       // language
       const language = cacheMaker.get('language') ?? 'japanese';
+      // wav path
+      const targetPath: string = cacheMaker.get('path') ?? '';
       // subdir list
-      const allDirents: any = await readdir(path.join(fileRootPath, 'partial'), { withFileTypes: true });
+      const allDirents: any = await readdir(targetPath, { withFileTypes: true });
+      // all dir names
       const dirNames: any[] = allDirents.filter((dirent: any) => dirent.isDirectory()).map(({ name }: any) => name);
       logger.debug(`merge: filepaths are ${dirNames}`);
       // if empty
       if (dirNames.length == 0) {
         // japanese
         if (language == 'japanese') {
-          throw new Error('対象が空です（file/partial）');
+          throw new Error('対象が空です');
         } else {
-          throw new Error('file/partial directory is empty');
+          throw new Error('directory is empty');
         }
       }
       // switch on language
@@ -1981,10 +1950,10 @@ ipcMain.on('merge', async (event: any, _) => {
       });
       // loop
       await Promise.all(dirNames.map(async (dir: any): Promise<void> => {
-        return new Promise(async (resolve1, reject1) => {
+        return new Promise(async (resolve1, _) => {
           try {
             // target dir path
-            const targetDir: string = path.join(fileRootPath, 'partial', dir);
+            const targetDir: string = path.join(targetPath, dir);
             // output dir path
             const outputDir: string = path.join(fileRootPath, 'output');
             // file list in subfolder
@@ -1992,7 +1961,7 @@ ipcMain.on('merge', async (event: any, _) => {
 
             // filepath list
             const filePaths: any[] = audioFiles.map((fl: string) => {
-              return path.join(fileRootPath, 'partial', dir, fl);
+              return path.join(targetPath, dir, fl);
             });
 
             // over 1000
@@ -2001,10 +1970,10 @@ ipcMain.on('merge', async (event: any, _) => {
               const chunkedArr: any[][] = ((arr, size) => arr.flatMap((_, i, a) => i % size ? [] : [a.slice(i, i + size)]))(filePaths, 500);
               // operate each
               for await (const [index, arr] of Object.entries(chunkedArr)) {
-                // partial output path
-                const partialOutPath: string = path.join(outputDir, `${dir}-${index}.wav`);
+                // output path
+                const fileOutPath: string = path.join(outputDir, `${dir}-${index}.wav`);
                 // merge wavs
-                await ffmpegManager.mergeAudio(arr, partialOutPath, 10000, 1024 * 1024 * 1024 * 5);
+                await ffmpegManager.mergeAudio(arr, fileOutPath, 10000, 1024 * 1024 * 1024 * 5);
               }
             } else {
               // output path
@@ -2054,6 +2023,66 @@ ipcMain.on('merge', async (event: any, _) => {
       }
     }
     resolve();
+  });
+});
+
+// delete
+ipcMain.on('delete', async (_, __): Promise<void> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      logger.info('app: delete app');
+      // language
+      const language = cacheMaker.get('language') ?? 'japanese';
+      // status message
+      let finishedMessage: string = '';
+      // title
+      let questionTitle: string = '';
+      // message
+      let questionMessage: string = '';
+
+      // japanese
+      if (language == 'japanese') {
+        questionTitle = '削除';
+        questionMessage = '作成したファイルを全削除してもいいですか';
+      } else {
+        questionTitle = 'Delete';
+        questionMessage = 'Delete all files. ok?';
+      }
+      // selection
+      const selected: number = dialogMaker.showQuetion(
+        'question',
+        questionTitle,
+        questionMessage,
+      );
+      // when yes
+      if (selected == 0) {
+        // delete tmp files
+        await fileManager.rmDir(path.join(fileRootPath, 'output'));
+        // remake dir
+        await fileManager.mkDir(path.join(fileRootPath, 'output'));
+        // switch on language
+        if (language == 'japanese') {
+          // set finish message
+          finishedMessage = '完了しました';
+        } else {
+          // set finish message
+          finishedMessage = 'Finished.';
+        }
+      }
+      // finish message
+      dialogMaker.showmessage('info', finishedMessage);
+      logger.info('ipc: operation finished.');
+      resolve();
+
+    } catch (e: unknown) {
+      logger.error(e);
+      reject();
+      // error
+      if (e instanceof Error) {
+        // error message
+        dialogMaker.showmessage('error', e.message);
+      }
+    }
   });
 });
 

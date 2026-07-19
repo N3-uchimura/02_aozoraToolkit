@@ -32,7 +32,7 @@
     <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
   </footer>
 
-  <script charset="UTF-8">
+  <script charset='UTF-8'>
     /// constants
     // japanese
     const APPNAME_STR_JA = '青空ツールキット設定画面';
@@ -47,10 +47,10 @@
     const SAVE_STR_EN = 'Save';
     const EXIT_STR_EN = 'Exit';
     // doms
-    const maintitleDom = document.getElementById("maintitle");
-    const languageDom = document.getElementById("language");
-    const languageareaDom = document.getElementById("languagearea");
-    const gotoTopButtonDom = document.getElementById("top_button");
+    const maintitleDom = document.getElementById('maintitle');
+    const languageDom = document.getElementById('language');
+    const languageareaDom = document.getElementById('languagearea');
+    const gotoTopButtonDom = document.getElementById('top_button');
     const saveButtonDom = document.getElementById('save_button');
     const exitButtonDom = document.getElementById('exit_button');
 
@@ -64,7 +64,7 @@
     });
 
     // be ready
-    window.api.on("confready", arg => {
+    window.api.on('confready', arg => {
       // change language
       changeLanguage(arg);
     });
@@ -94,7 +94,7 @@
     const transfer = channel => {
       try {
         // transfer
-        window.api.send("page", channel);
+        window.api.send('page', channel);
 
       } catch (e) {
         // error
@@ -113,7 +113,7 @@
         gotoTopButtonDom.innerHTML = GOTOTOP_STR_JA;
         saveButtonDom.innerHTML = SAVE_STR_JA;
         exitButtonDom.innerHTML = EXIT_STR_JA;
-        document.documentElement.setAttribute("lang", 'ja');
+        document.documentElement.setAttribute('lang', 'ja');
         // english
       } else {
         languageDom.checked = false;
@@ -123,7 +123,7 @@
         gotoTopButtonDom.innerHTML = GOTOTOP_STR_EN;
         saveButtonDom.innerHTML = SAVE_STR_EN;
         exitButtonDom.innerHTML = EXIT_STR_EN;
-        document.documentElement.setAttribute("lang", 'en');
+        document.documentElement.setAttribute('lang', 'en');
       }
     }
   </script>

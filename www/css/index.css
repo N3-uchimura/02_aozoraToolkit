@@ -2,7 +2,7 @@
 /* index.css
 */
 
-@charset "utf-8";
+@charset 'utf-8';
 
 body {
   width: 95%;
@@ -38,6 +38,10 @@ footer {
 hr {
   border: none;
   border-top: 1px solid #333;
+}
+
+.display-none {
+  display: none;
 }
 
 .operation_area {

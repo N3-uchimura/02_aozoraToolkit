@@ -24,9 +24,6 @@
   <div class="operation_area">
     <button id="rename_button" class="button-g button-wide" value="rename" onclick="gotoRename()">Rename</button>
   </div>
-  <div class="operation_area">
-    <button id="split_button" class="button-g button-wide" value="split" onclick="gotoSplit()">Split</button>
-  </div>
   <div class="extra_area">
     <h3 id="extra">Extra</h3>
     <div id="selectarea">
@@ -58,7 +55,7 @@
     <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
   </footer>
 
-  <script charset="UTF-8">
+  <script charset='UTF-8'>
     /// japanese
     // common
     const APPNAME_STR_JA = '青空ツールキット';
@@ -71,7 +68,6 @@
     const EXTRACT_STR_JA = 'ZIP解凍';
     const MODIFY_STR_JA = 'TXT修正';
     const RENAME_STR_JA = 'リネーム';
-    const SPLIT_STR_JA = '分割';
     const FIRST_STR_JA = '1行目';
     const FIRSTPLIS_STR_JA = '1行目*';
     const SECOND_STR_JA = '2行目';
@@ -90,7 +86,6 @@
     const EXTRACT_STR_EN = 'Extract';
     const MODIFY_STR_EN = 'Modify';
     const RENAME_STR_EN = 'Rename';
-    const SPLIT_STR_EN = 'Split';
     const FIRST_STR_EN = '1st line';
     const FIRSTPLIS_STR_EN = '1 line*';
     const SECOND_STR_EN = '2nd line';
@@ -99,7 +94,7 @@
 
     /// doms
     // common
-    const maintitleDom = document.getElementById("maintitle");
+    const maintitleDom = document.getElementById('maintitle');
     const opendirButtonDom = document.getElementById('open_button');
     const statusDom = document.getElementById('status');
     const statusAreaDom = document.getElementById('statusarea');
@@ -110,7 +105,6 @@
     const extractButtonDom = document.getElementById('extract_button');
     const modifyButtonDom = document.getElementById('modify_button');
     const renameButtonDom = document.getElementById('rename_button');
-    const splitButtonDom = document.getElementById('split_button');
     const firstLabelDom = document.getElementById('firstlabel');
     const firstPlusLabelDom = document.getElementById('firstpluslabel');
     const firstDom = document.getElementById('first');
@@ -123,10 +117,10 @@
 
     /// ipc
     // before ready
-    window.api.send("beforeready");
+    window.api.send('beforeready');
 
     // be ready
-    window.api.on("ready", arg => {
+    window.api.on('ready', arg => {
       console.log('ready');
       // change language
       changeLanguage(arg);
@@ -137,7 +131,7 @@
       try {
         console.log(arg);
         // status 
-        statusAreaDom.innerHTML = arg.status;
+        statusAreaDom.innerHTML = arg.status + '\n' + arg.target;
 
       } catch (e) {
         // error
@@ -198,19 +192,6 @@
       }
     }
 
-    // start splitting
-    const gotoSplit = () => {
-      try {
-        console.log('splitting');
-        // split
-        window.api.send('split');
-
-      } catch (e) {
-        // error
-        console.log(e);
-      }
-    }
-
     // extra function
     const gotoExtra = () => {
       try {
@@ -231,7 +212,7 @@
     const transfer = channel => {
       try {
         // transfer
-        window.api.send("page", channel);
+        window.api.send('page', channel);
 
       } catch (e) {
         // error
@@ -260,7 +241,6 @@
         extractButtonDom.innerHTML = EXTRACT_STR_JA;
         modifyButtonDom.innerHTML = MODIFY_STR_JA;
         renameButtonDom.innerHTML = RENAME_STR_JA;
-        splitButtonDom.innerHTML = SPLIT_STR_JA;
         firstLabelDom.innerHTML = FIRST_STR_JA;
         firstPlusLabelDom.innerHTML = FIRSTPLIS_STR_JA;
         secondLabelDom.innerHTML = SECOND_STR_JA;
@@ -271,7 +251,7 @@
         statusDom.innerHTML = STATUS_STR_JA;
         topButtonDom.innerHTML = GOTOTOP_STR_JA;
         exitButtonDom.innerHTML = EXIT_STR_JA;
-        document.documentElement.setAttribute("lang", 'ja');
+        document.documentElement.setAttribute('lang', 'ja');
         // english
       } else {
         document.title = APPNAME_STR_EN;
@@ -279,7 +259,6 @@
         extractButtonDom.innerHTML = EXTRACT_STR_EN;
         modifyButtonDom.innerHTML = MODIFY_STR_EN;
         renameButtonDom.innerHTML = RENAME_STR_EN;
-        splitButtonDom.innerHTML = SPLIT_STR_EN;
         firstLabelDom.innerHTML = FIRST_STR_EN;
         firstPlusLabelDom.innerHTML = FIRSTPLIS_STR_EN;
         secondLabelDom.innerHTML = SECOND_STR_EN;
@@ -290,7 +269,7 @@
         statusDom.innerHTML = STATUS_STR_EN;
         topButtonDom.innerHTML = GOTOTOP_STR_EN;
         exitButtonDom.innerHTML = EXIT_STR_EN;
-        document.documentElement.setAttribute("lang", 'en');
+        document.documentElement.setAttribute('lang', 'en');
       }
     }
   </script>

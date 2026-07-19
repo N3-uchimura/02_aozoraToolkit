@@ -90,7 +90,10 @@
     <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
   </footer>
 
-  <script charset="UTF-8">
+  <script charset='UTF-8'>
+    // global variable
+    let globalLanguage = 'japanese';
+
     /// japanese
     // common
     const APPNAME_STR_JA = '青空ツールキット';
@@ -129,7 +132,7 @@
 
     /// doms
     // common
-    const maintitleDom = document.getElementById("maintitle");
+    const maintitleDom = document.getElementById('maintitle');
     const opendirButtonDom = document.getElementById('open_button');
     const statusDom = document.getElementById('status');
     const statusAreaDom = document.getElementById('statusarea');
@@ -137,16 +140,16 @@
     const topButtonDom = document.getElementById('top_button');
     const exitButtonDom = document.getElementById('exit_button');
     // scraping
-    const selectJaDom = document.getElementById("select_ja");
-    const selectEnDom = document.getElementById("select_en");
-    const startNumDom = document.getElementById("startnum");
-    const endNumDom = document.getElementById("endnum");
-    const startAreaNumDom = document.getElementById("startnum_area");
-    const endAreaNumDom = document.getElementById("endnum_area");
-    const startHeadNumDom = document.getElementById("startnumHead");
-    const endHeadNumDom = document.getElementById("endnumHead");
-    const startJaDom = document.getElementById("startja");
-    const startEnDom = document.getElementById("starten");
+    const selectJaDom = document.getElementById('select_ja');
+    const selectEnDom = document.getElementById('select_en');
+    const startNumDom = document.getElementById('startnum');
+    const endNumDom = document.getElementById('endnum');
+    const startAreaNumDom = document.getElementById('startnum_area');
+    const endAreaNumDom = document.getElementById('endnum_area');
+    const startHeadNumDom = document.getElementById('startnumHead');
+    const endHeadNumDom = document.getElementById('endnumHead');
+    const startJaDom = document.getElementById('startja');
+    const startEnDom = document.getElementById('starten');
     const getfileDom = document.getElementById('filelabel');
     const getbookDom = document.getElementById('booklabel');
     const getauthorDom = document.getElementById('authorlabel');
@@ -156,13 +159,14 @@
 
     /// ipc
     // before ready
-    window.api.send("beforeready");
+    window.api.send('beforeready');
 
     // be ready
-    window.api.on("ready", arg => {
+    window.api.on('ready', arg => {
       console.log('ready');
       // change language
       changeLanguage(arg);
+      globalLanguage = arg;
     });
 
     // update status
@@ -170,7 +174,7 @@
       try {
         console.log(arg);
         // status 
-        statusAreaDom.innerHTML = arg.status;
+        statusAreaDom.innerHTML = arg.status + '\n' + arg.target;
 
       } catch (e) {
         // error
@@ -209,25 +213,25 @@
         // mode switch
         switch (value) {
           // file mode
-          case "file":
+          case 'file':
             // file scrape
             window.api.send('download', tmpStart);
             break;
 
           // book mode
-          case "book":
+          case 'book':
             // bookscrape
             window.api.send('bookscrape', tmpStart);
             break;
 
           // title mode
-          case "title":
+          case 'title':
             // title scrape
             window.api.send('titlescrape', tmpStart);
             break;
 
           // author mode
-          case "author":
+          case 'author':
             const tmpObj = {
               start: startNumDom.value,
               end: endNumDom.value
@@ -250,7 +254,7 @@
     const pauseScrape = () => {
       try {
         // pause Scraping
-        window.api.send("pause");
+        window.api.send('pause');
 
       } catch (e) {
         // error
@@ -263,22 +267,22 @@
       try {
         // initialize form
         if (value === 'author') {
-          startAreaNumDom.classList.remove("display-none");
-          endAreaNumDom.classList.remove("display-none");
+          startAreaNumDom.classList.remove('display-none');
+          endAreaNumDom.classList.remove('display-none');
           // japanese
           if (globalLanguage == 'japanese') {
-            selectJaDom.classList.add("display-none");
+            selectJaDom.classList.add('display-none');
           } else {
-            selectEnDom.classList.add("display-none");
+            selectEnDom.classList.add('display-none');
           }
         } else {
-          startAreaNumDom.classList.add("display-none");
-          endAreaNumDom.classList.add("display-none");
+          startAreaNumDom.classList.add('display-none');
+          endAreaNumDom.classList.add('display-none');
           // japanese
           if (globalLanguage == 'japanese') {
-            selectJaDom.classList.remove("display-none");
+            selectJaDom.classList.remove('display-none');
           } else {
-            selectEnDom.classList.remove("display-none");
+            selectEnDom.classList.remove('display-none');
           }
         }
 
@@ -293,7 +297,7 @@
     const transfer = channel => {
       try {
         // transfer
-        window.api.send("page", channel);
+        window.api.send('page', channel);
 
       } catch (e) {
         // error
@@ -305,7 +309,7 @@
     const gotoOpen = () => {
       try {
         // scrape
-        window.api.send('open');
+        window.api.send('open', 'source');
 
       } catch (e) {
         // error
@@ -331,7 +335,8 @@
         statusDom.innerHTML = STATUS_STR_JA;
         topButtonDom.innerHTML = GOTOTOP_STR_JA;
         exitButtonDom.innerHTML = EXIT_STR_JA;
-        document.documentElement.setAttribute("lang", 'ja');
+        selectEnDom.classList.add('display-none');
+        document.documentElement.setAttribute('lang', 'ja');
         // english
       } else {
         document.title = APPNAME_STR_EN;
@@ -348,7 +353,8 @@
         statusDom.innerHTML = STATUS_STR_EN;
         topButtonDom.innerHTML = GOTOTOP_STR_EN;
         exitButtonDom.innerHTML = EXIT_STR_EN;
-        document.documentElement.setAttribute("lang", 'en');
+        selectJaDom.classList.add('display-none');
+        document.documentElement.setAttribute('lang', 'en');
       }
     }
   </script>

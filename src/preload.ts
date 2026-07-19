@@ -11,7 +11,7 @@ import { contextBridge, ipcRenderer } from 'electron'; // electron
 
 // contextBridge
 contextBridge.exposeInMainWorld(
-    "api", {
+    'api', {
     // send to ipcMain
     send: (channel: string, data: any) => {
         try {

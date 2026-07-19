@@ -2,7 +2,7 @@
 /* button.css
 */
 
-@charset "utf-8";
+@charset 'utf-8';
 
 /* buttons */
 .button-g {
@@ -17,7 +17,7 @@
   align-items: center;
   color: rgba(0, 0, 0, 0.85);
   cursor: pointer;
-  font-family: system-ui, -apple-system, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, system-ui, 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 1.25;

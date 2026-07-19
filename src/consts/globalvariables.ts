@@ -8,12 +8,12 @@
 // default
 export namespace myConst {
   export const DEVMODE: boolean = true;
-  export const COMPANY_NAME: string = "nthree";
-  export const APP_NAME: string = "aozoratoolkit";
-  export const LOG_LEVEL: string = "debug";
-  export const DEFAULT_ENCODING: string = "utf8";
+  export const COMPANY_NAME: string = 'nthree';
+  export const APP_NAME: string = 'aozoratoolkit';
+  export const LOG_LEVEL: string = 'debug';
+  export const DEFAULT_ENCODING: string = 'utf8';
   export const CSV_ENCODING: string = 'SJIS';
-  export const OUTPUT_PATH: string = "output";
+  export const OUTPUT_PATH: string = 'output';
   export const SHEET_TITLES: string[] = ['filename', 'intro'];
   export const DEF_AOZORA_AUTHOR_URL: string = 'https://www.aozora.gr.jp/index_pages/person';
   export const DEF_AOZORA_BOOK_URL: string = 'https://www.aozora.gr.jp/index_pages/sakuhin';

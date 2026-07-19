@@ -63,7 +63,7 @@
     <p><small>&copy; 2026 Nthree All Rights Reserved. </small></p>
   </footer>
 
-  <script charset="UTF-8">
+  <script charset='UTF-8'>
     /// japanese
     // common
     const APPNAME_STR_JA = '青空ツールキット';
@@ -98,7 +98,7 @@
 
     /// doms
     // common
-    const maintitleDom = document.getElementById("maintitle");
+    const maintitleDom = document.getElementById('maintitle');
     const opendirButtonDom = document.getElementById('open_button');
     const statusDom = document.getElementById('status');
     const statusAreaDom = document.getElementById('statusarea');
@@ -117,10 +117,10 @@
 
     /// ipc
     // before ready
-    window.api.send("beforeready");
+    window.api.send('beforeready');
 
     // be ready
-    window.api.on("ready", arg => {
+    window.api.on('ready', arg => {
       console.log('ready');
       // change language
       changeLanguage(arg);
@@ -131,7 +131,7 @@
       try {
         console.log(arg);
         // status 
-        statusAreaDom.innerHTML = arg.status;
+        statusAreaDom.innerHTML = arg.status + '\n' + arg.target;
 
       } catch (e) {
         // error
@@ -157,10 +157,8 @@
     const gotoSelectDir = () => {
       try {
         console.log('select dir');
-        // directory selected
-        const tmpSelectedDir = selectdirDom.value;
         // selectdir
-        window.api.send('selectdir', tmpSelectedDir);
+        window.api.send('selectdir');
 
       } catch (e) {
         // error
@@ -194,7 +192,7 @@
     const transfer = channel => {
       try {
         // transfer
-        window.api.send("page", channel);
+        window.api.send('page', channel);
 
       } catch (e) {
         // error
@@ -206,7 +204,7 @@
     const gotoOpen = () => {
       try {
         // open
-        window.api.send('open');
+        window.api.send('open', 'output');
 
       } catch (e) {
         // error
@@ -230,7 +228,7 @@
         statusDom.innerHTML = STATUS_STR_JA;
         topButtonDom.innerHTML = GOTOTOP_STR_JA;
         exitButtonDom.innerHTML = EXIT_STR_JA;
-        document.documentElement.setAttribute("lang", 'ja');
+        document.documentElement.setAttribute('lang', 'ja');
         // english
       } else {
         document.title = APPNAME_STR_EN;
@@ -245,7 +243,7 @@
         statusDom.innerHTML = STATUS_STR_EN;
         topButtonDom.innerHTML = GOTOTOP_STR_EN;
         exitButtonDom.innerHTML = EXIT_STR_EN;
-        document.documentElement.setAttribute("lang", 'en');
+        document.documentElement.setAttribute('lang', 'en');
       }
     }
   </script>
