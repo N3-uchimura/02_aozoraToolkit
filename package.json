@@ -1,7 +1,7 @@
 {
   "name": "aozora-toolkit",
   "productName": "aozoratoolkit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "toolkit for aozora bunko",
   "main": "build/aozoratoolkit.js",
   "scripts": {

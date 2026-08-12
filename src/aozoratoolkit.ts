@@ -1916,13 +1916,15 @@ ipcMain.on('merge', async (event: any, _) => {
       const language = cacheMaker.get('language') ?? 'japanese';
       // wav path
       const targetPath: string = cacheMaker.get('path') ?? '';
-      // subdir list
-      const allDirents: any = await readdir(targetPath, { withFileTypes: true });
-      // all dir names
-      const dirNames: any[] = allDirents.filter((dirent: any) => dirent.isDirectory()).map(({ name }: any) => name);
-      logger.debug(`merge: filepaths are ${dirNames}`);
+      // file list in subfolder
+      const audioFiles: string[] = (await readdir(targetPath)).filter((ad: string) => path.parse(ad).ext == '.wav');
+      // filepath list
+      const filePaths: any[] = audioFiles.map((fl: string) => {
+        return path.join(targetPath, fl);
+      });
+      logger.debug(`merge: filepaths are ${audioFiles}`);
       // if empty
-      if (dirNames.length == 0) {
+      if (audioFiles.length == 0) {
         // japanese
         if (language == 'japanese') {
           throw new Error('対象が空です');
@@ -1943,54 +1945,13 @@ ipcMain.on('merge', async (event: any, _) => {
       // URL
       event.sender.send('statusUpdate', {
         status: statusmessage,
-        target: `${dirNames.length}${tmpUnit}`
+        target: `${audioFiles.length}${tmpUnit}`
       });
-      // loop
-      await Promise.all(dirNames.map(async (dir: any): Promise<void> => {
-        return new Promise(async (resolve1, _) => {
-          try {
-            // target dir path
-            const targetDir: string = path.join(targetPath, dir);
-            // output dir path
-            const outputDir: string = path.join(fileRootPath, 'output');
-            // file list in subfolder
-            const audioFiles: string[] = (await readdir(targetDir)).filter((ad: string) => path.parse(ad).ext == '.wav');
-
-            // filepath list
-            const filePaths: any[] = audioFiles.map((fl: string) => {
-              return path.join(targetPath, dir, fl);
-            });
-
-            // over 1000
-            if (filePaths.length >= 1000) {
-              // split files
-              const chunkedArr: any[][] = ((arr, size) => arr.flatMap((_, i, a) => i % size ? [] : [a.slice(i, i + size)]))(filePaths, 500);
-              // operate each
-              for await (const [index, arr] of Object.entries(chunkedArr)) {
-                // output path
-                const fileOutPath: string = path.join(outputDir, `${dir}-${index}.wav`);
-                // merge wavs
-                await ffmpegManager.mergeAudio(arr, fileOutPath, 10000, 1024 * 1024 * 1024 * 5);
-              }
-            } else {
-              // output path
-              const outputPath: string = path.join(outputDir, `${dir}.wav`);
-              // merge wavs
-              await ffmpegManager.mergeAudio(filePaths, outputPath, 10000, 1024 * 1024 * 1024 * 5);
-            }
-            resolve1();
-
-          } catch (error: unknown) {
-            // error
-            logger.error(error);
-            // error
-            if (error instanceof Error) {
-              // status
-              event.sender.send('errorUpdate', error);
-            }
-          }
-        });
-      }));
+      // output path
+      const outputPath: string = path.join(outputRootPath, audioFiles[0]);
+      console.log(outputPath);
+      // merge wavs
+      await ffmpegManager.mergeAudio(filePaths, outputPath, 10000, 1024 * 1024 * 1024 * 5);
       // status message
       let finishedMessage: string = '';
       // switch on language
