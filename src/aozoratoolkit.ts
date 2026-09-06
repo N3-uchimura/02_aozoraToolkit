@@ -19,14 +19,13 @@ import {
   writeFile,
   rename,
   readdir,
-  cp,
 } from 'node:fs/promises'; // promise fs
 import { setTimeout } from 'node:timers/promises'; // wait for seconds
 import { exec } from 'child_process'; // child process
 import { BrowserWindow, app, ipcMain, Tray, Menu, nativeImage, protocol } from 'electron'; // electron
 import { autoUpdater } from 'electron-updater'; // updater
 import iconv from 'iconv-lite'; // text converter
-import extract from 'extract-zip'; // extract zip file
+import extract from '@electron-internal/extract-zip'; // extract zip file
 import * as chardet from 'chardet'; // chardet
 import NodeCache from 'node-cache'; // node-cache
 import { Scrape } from './class/ElScrape0123'; // scraper
@@ -365,7 +364,6 @@ autoUpdater.addListener('update-downloaded', () => {
 /*
  IPC
 */
-
 // download
 ipcMain.on('download', async (event: any, arg: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
@@ -510,6 +508,8 @@ ipcMain.on('download', async (event: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      // error
+      event.sender.send('errorUpdate', e);
       reject();
 
     } finally {
@@ -695,6 +695,8 @@ ipcMain.on('bookscrape', async (event: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      // error
+      event.sender.send('errorUpdate', e);
       reject();
 
     } finally {
@@ -828,6 +830,8 @@ ipcMain.on('authorscrape', async (event: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      // error
+      event.sender.send('errorUpdate', e);
       reject();
 
     } finally {
@@ -1000,6 +1004,8 @@ ipcMain.on('titlescrape', async (event: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      // error
+      event.sender.send('errorUpdate', e);
       reject();
 
     } finally {
@@ -1010,9 +1016,112 @@ ipcMain.on('titlescrape', async (event: any, arg: any): Promise<void> => {
   });
 });
 
+// bungo scrape
+ipcMain.on('bungoscrape', async (event: any, _: any): Promise<void> => {
+  try {
+    logger.info('ipc: bungoscrape mode');
+    // success Counter
+    let successCounter: number = 0;
+    // fail Counter
+    let failCounter: number = 0;
+    // finaljson
+    let finalJsonArray: any[] = [];
+    // num data
+    const numArray: number[] = makeNumberRange(1, myNums.MAX_BUNGO_PAGES);
+    // init scraper
+    await puppScraper.init(true);
+
+    // URL
+    for await (const i of numArray) {
+      try {
+        // tmpJsonArray
+        let tmpJsonArray: any[] = [];
+        // URL
+        const bungoUrl: string = `${myConst.DEF_BUNGO_URL}${i}`;
+        logger.silly(`titlescrape: scraping ${bungoUrl}`);
+        // move to top
+        await puppScraper.doGo(bungoUrl);
+        // column loop number
+        const columns: number[] = makeNumberRange(1, myNums.MAX_PAGE_ROWS);
+        // loop
+        for await (const j of columns) {
+          try {
+            // promises
+            let tPromises: Promise<any>[] = [];
+            // wait for 2sec
+            await puppScraper.doWaitFor(500);
+            // acquired bookname data
+            tPromises.push(puppScraper.doSingleEval(mySelectors.bookname(j), 'innerHTML'));
+            // acquired authorname data
+            tPromises.push(puppScraper.doSingleEval(mySelectors.authorname(j), 'innerHTML'));
+            // bungo results
+            const bungoResult: any = await Promise.all(tPromises);
+            // not empty
+            if (bungoResult.length > 0) {
+              // set to array
+              tmpJsonArray.push(bungoResult);
+            }
+
+
+          } catch (err1: unknown) {
+            logger.error(err1);
+          }
+        }
+        // increment success counter
+        successCounter++;
+        // set to finalArray
+        finalJsonArray.push(tmpJsonArray);
+
+      } catch (err2: unknown) {
+        logger.error(err2);
+        failCounter++;
+
+      } finally {
+        // URL
+        event.sender.send('statusUpdate', {
+          status: '収集中...', // status
+          target: `${i} ページ` // page
+        });
+      }
+    }
+    // finaljson
+    let csvJsonArray: any[] = [];
+    // all races
+    finalJsonArray.flat().forEach((book: any) => {
+      // empty array
+      let tmpObj: { [key: string]: string } = {
+        bookname: '', // bookname
+        authorname: '', // authorname
+      };
+      // set each value
+      tmpObj.bookname = book[0];
+      tmpObj.authorname = book[1];
+      // set to json
+      csvJsonArray.push(tmpObj);
+    });
+    logger.debug('titlescrape: making csv...');
+    // nowtime
+    const nowTimeStr: string = (new Date).toISOString().replace(/[^\d]/g, '').slice(0, 14);
+    // desktop path
+    const filePath: string = path.join(dir_desktop, nowTimeStr + '.csv');
+    // write data
+    await csvMaker.makeCsvData(csvJsonArray, myColumns.BUNGO_COLUMNS, filePath);
+
+  } catch (err4: unknown) {
+    logger.error(err4);
+    // error
+    event.sender.send('errorUpdate', err4);
+  } finally {
+    // end message
+    dialogMaker.showmessage('info', '終了しました。');
+    logger.info('ipc: titlescrape completed');
+  }
+});
+
+
 /// editor
 // extract
-ipcMain.on('extract', async (): Promise<void> => {
+ipcMain.on('extract', async (event: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('ipc: extract mode');
@@ -1097,6 +1206,7 @@ ipcMain.on('extract', async (): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1109,7 +1219,7 @@ ipcMain.on('extract', async (): Promise<void> => {
 });
 
 // modify
-ipcMain.on('modify', async (): Promise<void> => {
+ipcMain.on('modify', async (event: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('ipc: modify mode');
@@ -1227,6 +1337,7 @@ ipcMain.on('modify', async (): Promise<void> => {
     } catch (e: unknown) {
       // error
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1239,7 +1350,7 @@ ipcMain.on('modify', async (): Promise<void> => {
 });
 
 // rename
-ipcMain.on('rename', async (): Promise<void> => {
+ipcMain.on('rename', async (event: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('ipc: rename mode');
@@ -1363,6 +1474,7 @@ ipcMain.on('rename', async (): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1375,7 +1487,7 @@ ipcMain.on('rename', async (): Promise<void> => {
 });
 
 // extra
-ipcMain.on('extra', async (_: any, arg: any): Promise<void> => {
+ipcMain.on('extra', async (event: any, arg: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('ipc: extra mode');
@@ -1493,6 +1605,7 @@ ipcMain.on('extra', async (_: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1528,6 +1641,7 @@ ipcMain.on('save', async (event: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1607,6 +1721,12 @@ ipcMain.on('page', async (event: any, arg: any): Promise<void> => {
           url = 'config.html';
           break;
 
+        // bungoscraping_page
+        case 'bungo_scrape_page':
+          // bungo
+          url = 'bungo.html';
+          break;
+
         // exit_page
         case 'exit_page':
           // title
@@ -1656,6 +1776,7 @@ ipcMain.on('page', async (event: any, arg: any): Promise<void> => {
     } catch (e) {
       // error
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1668,7 +1789,7 @@ ipcMain.on('page', async (event: any, arg: any): Promise<void> => {
 });
 
 // open
-ipcMain.on('open', (_: any, arg: any): void => {
+ipcMain.on('open', (event: any, arg: any): void => {
   try {
     logger.info('app: open dir');
     // dir path
@@ -1685,6 +1806,7 @@ ipcMain.on('open', (_: any, arg: any): void => {
 
   } catch (e: unknown) {
     logger.error(e);
+    event.sender.send('errorUpdate', e);
     // error
     if (e instanceof Error) {
       // error message
@@ -1694,7 +1816,7 @@ ipcMain.on('open', (_: any, arg: any): void => {
 });
 
 // exit
-ipcMain.on('exit', (): void => {
+ipcMain.on('exit', (event: any): void => {
   try {
     logger.info('ipc: exit mode');
     // title
@@ -1726,12 +1848,13 @@ ipcMain.on('exit', (): void => {
   } catch (e: unknown) {
     // error
     logger.error(e);
+    event.sender.send('errorUpdate', e);
   }
 });
 
 /// scraping
 // pause
-ipcMain.on('pause', async (_: any, __: any): Promise<void> => {
+ipcMain.on('pause', async (event: any, __: any): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('ipc: pause mode');
@@ -1777,6 +1900,7 @@ ipcMain.on('pause', async (_: any, __: any): Promise<void> => {
     } catch (e: unknown) {
       // error
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       // error
       if (e instanceof Error) {
         // show error
@@ -1794,7 +1918,7 @@ ipcMain.on('pause', async (_: any, __: any): Promise<void> => {
 
 /// converting
 // selectdir
-ipcMain.on('selectdir', async (_, __): Promise<void> => {
+ipcMain.on('selectdir', async (event: any, __): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('ipc: selectdir mode');
@@ -1817,6 +1941,7 @@ ipcMain.on('selectdir', async (_, __): Promise<void> => {
 
     } catch (e) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1891,6 +2016,7 @@ ipcMain.on('convert', async (event: any, arg: any): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1949,7 +2075,6 @@ ipcMain.on('merge', async (event: any, _) => {
       });
       // output path
       const outputPath: string = path.join(outputRootPath, audioFiles[0]);
-      console.log(outputPath);
       // merge wavs
       await ffmpegManager.mergeAudio(filePaths, outputPath, 10000, 1024 * 1024 * 1024 * 5);
       // status message
@@ -1973,6 +2098,7 @@ ipcMain.on('merge', async (event: any, _) => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {
@@ -1985,7 +2111,7 @@ ipcMain.on('merge', async (event: any, _) => {
 });
 
 // delete
-ipcMain.on('delete', async (_, __): Promise<void> => {
+ipcMain.on('delete', async (event: any, __): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
       logger.info('app: delete app');
@@ -2034,6 +2160,7 @@ ipcMain.on('delete', async (_, __): Promise<void> => {
 
     } catch (e: unknown) {
       logger.error(e);
+      event.sender.send('errorUpdate', e);
       reject();
       // error
       if (e instanceof Error) {

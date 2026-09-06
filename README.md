@@ -24,6 +24,8 @@ This is scraping and editing tool for[aozora bunko](https://www.aozora.gr.jp/).
    This is converter which convert wav to m4a.
 4. aozoraMerger
    This is merge which merge wavs.
+5. bungoScraper
+   This is scraping tool for bungo search[bungo search](https://search.bungo.app//).
 
 ## Requirement
 
@@ -100,6 +102,11 @@ Windows10 ~
    2. Press "Select Direcotry" and select target directory.
    3. Press "Merge" button.
    4. merged wav files are restored to resources\file\output\xxx.wav.
+
+5. bungoScraper
+   1. Press "Scraping" button and scraping start.
+   2. Press "Pause" button and stop scraping and write csv to Desktop.
+   3. When finished, csv file will be saved on desktop.
 
 ## Features
 

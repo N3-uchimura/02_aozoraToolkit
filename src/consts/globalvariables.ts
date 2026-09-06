@@ -17,6 +17,7 @@ export namespace myConst {
   export const SHEET_TITLES: string[] = ['filename', 'intro'];
   export const DEF_AOZORA_AUTHOR_URL: string = 'https://www.aozora.gr.jp/index_pages/person';
   export const DEF_AOZORA_BOOK_URL: string = 'https://www.aozora.gr.jp/index_pages/sakuhin';
+  export const DEF_BUNGO_URL: string = 'https://search.bungo.app/page/';
 }
 
 // default
@@ -27,6 +28,7 @@ export namespace myNums {
   export const WINDOW_WIDTH: number = 800;
   export const WINDOW_HEIGHT: number = 1000;
   export const MAX_AUTHORS: number = 2450;
+  export const MAX_BUNGO_PAGES: number = 286;
   export const DEFAULT_QUALITY: number = 92;
   export const DEFAULT_RATE: number = 44100;
 }
@@ -44,6 +46,10 @@ export namespace myColumns {
 
   export const TITLE_COLUMNS: string[] = [
     'No', 'title', 'lettering', 'author', 'authorname', 'translator'
+  ];
+
+  export const BUNGO_COLUMNS: string[] = [
+    'bookname', 'authorname',
   ];
 }
 
@@ -66,6 +72,12 @@ export namespace mySelectors {
   }
   export const nolink = (num: number): string => {
     return `body > center > table > tbody > tr:nth-child(${num}) > td:nth-child(1)`;
+  }
+  export const bookname = (num: number): string => {
+    return `body > div > main > div > div:nth-child(3) > div > table > tbody:nth-child(${num + 1}) > tr.border-t > td:nth-child(1) > a`;
+  }
+  export const authorname = (num: number): string => {
+    return `body > div > main > div > div:nth-child(3) > div > table > tbody:nth-child(${num + 1}) > tr.border-t > td:nth-child(2) > a`;
   }
 }
 
