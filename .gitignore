@@ -1,0 +1,8 @@
+/node_modules/
+/build/
+/dist/
+/file/**/*
+/.vscode/
+package-lock.json
+/assets/.env
+/assets/.devenv
